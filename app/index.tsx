@@ -108,7 +108,6 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
-  const liveGames = mockGames.filter((g) => g.status === 'live');
   const recentFinals = mockGames.filter((g) => g.status === 'final').slice(0, 2);
 
   const handleHistoryPress = useCallback(() => {
@@ -159,10 +158,6 @@ export default function HomeScreen() {
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
-
-        {liveGames.map((game) => (
-          <LiveGameCard key={game.id} game={game} />
-        ))}
 
         {recentFinals.map((game) => (
           <FinalGameCard key={game.id} game={game} />
