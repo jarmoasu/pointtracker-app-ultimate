@@ -62,11 +62,12 @@ function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
   );
 }
 
-export default function StatsScreen() {
+export default function GameHistoryScreen() {
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
+          title: 'Game History',
           headerRight: () => (
             <TouchableOpacity testID="export-button">
               <Text style={styles.exportText}>Export</Text>

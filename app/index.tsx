@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -72,13 +72,9 @@ function LiveGameCard({ game }: { game: Game }) {
 }
 
 function FinalGameCard({ game }: { game: Game }) {
-  const router = useRouter();
-
   return (
-    <TouchableOpacity
+    <View
       style={styles.finalGameCard}
-      activeOpacity={0.7}
-      onPress={() => router.push('/game-log')}
       testID="final-game-card"
     >
       <View style={styles.finalCardHeader}>
@@ -104,7 +100,7 @@ function FinalGameCard({ game }: { game: Game }) {
           {game.awayTeam.name}
         </Text>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -114,6 +110,11 @@ export default function HomeScreen() {
 
   const liveGames = mockGames.filter((g) => g.status === 'live');
   const recentFinals = mockGames.filter((g) => g.status === 'final').slice(0, 2);
+
+  const handleHistoryPress = useCallback(() => {
+    console.log('[HomeScreen] Navigate to game history');
+    router.push('/game-history');
+  }, [router]);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -132,6 +133,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             style={styles.settingsBtn}
             testID="settings-button"
+            onPress={() => console.log('[HomeScreen] Settings tapped')}
           >
             <Settings size={22} color={Colors.gray500} />
           </TouchableOpacity>
@@ -140,7 +142,10 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.newGameBanner}
           activeOpacity={0.85}
-          onPress={() => router.push('/game-setup')}
+          onPress={() => {
+            console.log('[HomeScreen] New game pressed');
+            router.push('/game-setup');
+          }}
           testID="new-game-button"
         >
           <View style={styles.newGameLeft}>
@@ -157,7 +162,7 @@ export default function HomeScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Recent Games</Text>
-          <TouchableOpacity onPress={() => router.push('/stats')}>
+          <TouchableOpacity onPress={handleHistoryPress} testID="see-all-history">
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
