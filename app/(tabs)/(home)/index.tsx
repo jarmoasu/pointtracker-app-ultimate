@@ -40,13 +40,9 @@ function TeamAvatar({ name, color }: { name: string; color: string }) {
 }
 
 function LiveGameCard({ game }: { game: Game }) {
-  const router = useRouter();
-
   return (
-    <TouchableOpacity
+    <View
       style={styles.liveGameCard}
-      activeOpacity={0.7}
-      onPress={() => router.push('/live-scoring')}
       testID="live-game-card"
     >
       <View style={styles.liveCardHeader}>
@@ -71,7 +67,7 @@ function LiveGameCard({ game }: { game: Game }) {
           <Text style={styles.liveTeamName}>{game.awayTeam.name}</Text>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
