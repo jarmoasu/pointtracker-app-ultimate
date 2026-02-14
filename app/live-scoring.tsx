@@ -1,0 +1,358 @@
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Settings, ListChecks, Timer, Flag, Coffee, Plus } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import Colors from '@/constants/colors';
+
+export default function LiveScoringScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: 'LIVE SCORING',
+          headerTitleStyle: {
+            fontWeight: '600' as const,
+            color: Colors.textSecondary,
+            fontSize: 14,
+            letterSpacing: 1.5,
+          },
+          headerStyle: { backgroundColor: Colors.background },
+          headerTintColor: Colors.dark,
+          headerRight: () => (
+            <TouchableOpacity style={styles.settingsBtn}>
+              <Settings size={20} color={Colors.dark} />
+            </TouchableOpacity>
+          ),
+        }}
+      />
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.timerCard}>
+          <Text style={styles.timerText}>48:12</Text>
+          <Text style={styles.periodText}>PERIOD 2</Text>
+
+          <View style={styles.scoreBoard}>
+            <View style={styles.scoreSide}>
+              <Text style={styles.scoreLabel}>HOME</Text>
+              <Text style={styles.scoreTeam}>SPIDERS</Text>
+              <Text style={styles.scoreNumber}>12</Text>
+              <View style={styles.scoreDots}>
+                <View style={[styles.scoreDot, styles.scoreDotActive]} />
+                <View style={[styles.scoreDot, styles.scoreDotActive]} />
+                <View style={styles.scoreDot} />
+              </View>
+            </View>
+            <Text style={styles.scoreDivider}>VS</Text>
+            <View style={styles.scoreSide}>
+              <Text style={styles.scoreLabel}>VISITOR</Text>
+              <Text style={styles.scoreTeam}>CASCADES</Text>
+              <Text style={styles.scoreNumber}>10</Text>
+              <View style={styles.scoreDots}>
+                <View style={styles.scoreDot} />
+                <View style={[styles.scoreDot, styles.scoreDotActive]} />
+                <View style={[styles.scoreDot, styles.scoreDotActive]} />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <TouchableOpacity
+          style={styles.homeScoreBtn}
+          activeOpacity={0.85}
+          onPress={() => router.push('/goal-details')}
+          testID="home-score-button"
+        >
+          <View>
+            <Text style={styles.scoreBtnLabel}>HOME</Text>
+            <Text style={styles.scoreBtnTeam}>SPIDERS</Text>
+            <Text style={styles.scoreBtnAction}>Score +1</Text>
+          </View>
+          <View style={styles.scoreBtnPlus}>
+            <Plus size={28} color={Colors.white} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.awayScoreBtn}
+          activeOpacity={0.85}
+          onPress={() => router.push('/goal-details')}
+          testID="away-score-button"
+        >
+          <View>
+            <Text style={styles.scoreBtnLabelDark}>VISITOR</Text>
+            <Text style={styles.scoreBtnTeamDark}>CASCADES</Text>
+            <Text style={styles.scoreBtnActionDark}>Score +1</Text>
+          </View>
+          <View style={styles.scoreBtnPlusDark}>
+            <Plus size={28} color={Colors.white} />
+          </View>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.viewLogBtn}
+          activeOpacity={0.85}
+          onPress={() => router.push('/game-log')}
+          testID="view-game-log-button"
+        >
+          <ListChecks size={20} color={Colors.white} />
+          <Text style={styles.viewLogText}>VIEW GAME LOG</Text>
+        </TouchableOpacity>
+
+        <View style={styles.quickActions}>
+          <TouchableOpacity style={styles.quickActionBtn} testID="home-timeout-button">
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
+              <Timer size={20} color={Colors.warning} />
+            </View>
+            <Text style={styles.quickActionLabel}>HOME{'\n'}TIMEOUT</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickActionBtn} testID="away-timeout-button">
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
+              <Timer size={20} color={Colors.warning} />
+            </View>
+            <Text style={styles.quickActionLabel}>AWAY{'\n'}TIMEOUT</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickActionBtn} testID="half-button">
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.gray100 }]}>
+              <Coffee size={20} color={Colors.textSecondary} />
+            </View>
+            <Text style={styles.quickActionLabel}>HALF</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.quickActionBtn} testID="end-game-button">
+            <View style={[styles.quickActionIcon, { backgroundColor: Colors.dangerLight }]}>
+              <Flag size={20} color={Colors.danger} />
+            </View>
+            <Text style={[styles.quickActionLabel, { color: Colors.danger }]}>END{'\n'}GAME</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  timerCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 24,
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  timerText: {
+    fontSize: 48,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+    letterSpacing: -2,
+  },
+  periodText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+    letterSpacing: 1.5,
+    marginTop: 4,
+    marginBottom: 20,
+  },
+  scoreBoard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  scoreSide: {
+    flex: 1,
+    backgroundColor: Colors.gray100,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  scoreLabel: {
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textTertiary,
+    letterSpacing: 0.8,
+  },
+  scoreTeam: {
+    fontSize: 16,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+    marginTop: 4,
+  },
+  scoreNumber: {
+    fontSize: 42,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+    letterSpacing: -2,
+  },
+  scoreDots: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  scoreDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.gray300,
+  },
+  scoreDotActive: {
+    backgroundColor: Colors.primary,
+  },
+  scoreDivider: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.textTertiary,
+    marginHorizontal: 12,
+  },
+  homeScoreBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.primary,
+    borderRadius: 20,
+    padding: 28,
+    marginBottom: 12,
+  },
+  scoreBtnLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: 'rgba(255,255,255,0.7)',
+    letterSpacing: 0.8,
+  },
+  scoreBtnTeam: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    marginTop: 2,
+  },
+  scoreBtnAction: {
+    fontSize: 34,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    marginTop: 4,
+  },
+  scoreBtnPlus: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  awayScoreBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.darkSecondary,
+    borderRadius: 20,
+    padding: 28,
+    marginBottom: 16,
+  },
+  scoreBtnLabelDark: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: 'rgba(255,255,255,0.5)',
+    letterSpacing: 0.8,
+  },
+  scoreBtnTeamDark: {
+    fontSize: 22,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    marginTop: 2,
+  },
+  scoreBtnActionDark: {
+    fontSize: 34,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    marginTop: 4,
+  },
+  scoreBtnPlusDark: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewLogBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.dark,
+    borderRadius: 16,
+    paddingVertical: 18,
+    marginBottom: 20,
+  },
+  viewLogText: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 1,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  quickActionBtn: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickActionLabel: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+});
