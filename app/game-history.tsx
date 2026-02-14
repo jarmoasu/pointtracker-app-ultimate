@@ -10,7 +10,8 @@ import { Stack, useRouter } from 'expo-router';
 import { Trash2, Calendar, Clock, House } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGames } from '@/mocks/games';
+import { mockGameEvents, mockGames } from '@/mocks/games';
+import { GameEvent } from '@/types/game';
 
 interface HistoryGroup {
   label: string;
@@ -32,6 +33,8 @@ const historyGroups: HistoryGroup[] = [
 ];
 
 function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
+  const logEvents: GameEvent[] = mockGameEvents.slice(0, 3);
+
   return (
     <View style={styles.card} testID="history-game-card">
       <View style={styles.cardHeader}>
@@ -57,6 +60,17 @@ function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
           <Clock size={14} color={Colors.textTertiary} />
           <Text style={styles.metaText}>{game.time}</Text>
         </View>
+      </View>
+      <View style={styles.logSection} testID="history-game-log">
+        <Text style={styles.logTitle}>Game Log</Text>
+        {logEvents.map((event) => (
+          <View key={event.id} style={styles.logRow}>
+            <Text style={styles.logTime}>{event.gameTime}</Text>
+            <Text style={styles.logText}>
+              {(event.teamName ?? 'Game').toUpperCase()} · {event.type.replace('_', ' ')}
+            </Text>
+          </View>
+        ))}
       </View>
     </View>
   );
@@ -194,6 +208,35 @@ const styles = StyleSheet.create({
   cardMeta: {
     flexDirection: 'row',
     gap: 18,
+  },
+  logSection: {
+    marginTop: 16,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray100,
+  },
+  logTitle: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.6,
+    marginBottom: 10,
+  },
+  logRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  logTime: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    width: 52,
+  },
+  logText: {
+    flex: 1,
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
   metaItem: {
     flexDirection: 'row',
