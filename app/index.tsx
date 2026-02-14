@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Settings, ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
+import { ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { mockGames } from '@/mocks/games';
@@ -130,13 +130,6 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.headerTitle}>PointTracker</Text>
           </View>
-          <TouchableOpacity
-            style={styles.settingsBtn}
-            testID="settings-button"
-            onPress={() => console.log('[HomeScreen] Settings tapped')}
-          >
-            <Settings size={22} color={Colors.gray500} />
-          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -216,16 +209,6 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: Colors.dark,
     letterSpacing: -0.5,
-  },
-  settingsBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.gray200,
   },
   newGameBanner: {
     flexDirection: 'row',
