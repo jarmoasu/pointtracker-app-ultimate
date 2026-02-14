@@ -43,11 +43,6 @@ export default function GoalDetailsScreen() {
           presentation: 'modal',
           headerTitleStyle: { fontWeight: '700' as const, color: Colors.dark },
           headerStyle: { backgroundColor: Colors.white },
-          headerLeft: () => (
-            <TouchableOpacity onPress={() => router.back()}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
-          ),
         }}
       />
       <ScrollView
@@ -218,11 +213,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 160,
-  },
-  cancelText: {
-    fontSize: 16,
-    fontWeight: '500' as const,
-    color: Colors.primary,
   },
   topCards: {
     flexDirection: 'row',
