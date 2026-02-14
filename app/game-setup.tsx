@@ -16,21 +16,19 @@ import {
   Upload,
   Pencil,
   X,
-  RefreshCw,
 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockTeams } from '@/mocks/games';
 import { Player } from '@/types/game';
 
 export default function GameSetupScreen() {
   const router = useRouter();
   const [streamId, setStreamId] = useState('');
   const [claimCode, setClaimCode] = useState('');
-  const [homeTeam, setHomeTeam] = useState<string>(mockTeams[0]?.name ?? 'Home');
-  const [awayTeam, setAwayTeam] = useState<string>(mockTeams[1]?.name ?? 'Away');
-  const [homePlayers, setHomePlayers] = useState<Player[]>(mockTeams[0]?.players ?? []);
-  const [awayPlayers, setAwayPlayers] = useState<Player[]>(mockTeams[1]?.players ?? []);
+  const [homeTeam, setHomeTeam] = useState<string>('');
+  const [awayTeam, setAwayTeam] = useState<string>('');
+  const [homePlayers, setHomePlayers] = useState<Player[]>([]);
+  const [awayPlayers, setAwayPlayers] = useState<Player[]>([]);
   const [activeRosterTab, setActiveRosterTab] = useState<'home' | 'away'>('home');
 
   useEffect(() => {
@@ -122,10 +120,6 @@ export default function GameSetupScreen() {
 
         <View style={styles.rosterHeader}>
           <Text style={styles.sectionTitle}>Roster Management</Text>
-          <TouchableOpacity style={styles.syncBtn} testID="sync-button">
-            <RefreshCw size={14} color={Colors.primary} />
-            <Text style={styles.syncText}>SYNC</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.rosterTabs}>
@@ -320,21 +314,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  syncBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primaryFaded,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  syncText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-    letterSpacing: 0.5,
   },
   rosterTabs: {
     flexDirection: 'row',
