@@ -30,6 +30,7 @@ export default function GameSetupScreen() {
   const [homePlayers, setHomePlayers] = useState<Player[]>([]);
   const [awayPlayers, setAwayPlayers] = useState<Player[]>([]);
   const [activeRosterTab, setActiveRosterTab] = useState<'home' | 'away'>('home');
+  const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('GameSetup initial teams', {
@@ -41,6 +42,22 @@ export default function GameSetupScreen() {
   }, [homeTeam, awayTeam, homePlayers.length, awayPlayers.length]);
 
   const currentPlayers = activeRosterTab === 'home' ? homePlayers : awayPlayers;
+
+  const handleStartPress = () => {
+    console.log('GameSetup start pressed');
+    setIsStartConfirmVisible(true);
+  };
+
+  const handleConfirmContinue = () => {
+    console.log('GameSetup confirm continue');
+    setIsStartConfirmVisible(false);
+    router.push('/live-scoring');
+  };
+
+  const handleConfirmBack = () => {
+    console.log('GameSetup confirm back to setup');
+    setIsStartConfirmVisible(false);
+  };
 
   return (
     <View style={styles.container}>
@@ -195,13 +212,40 @@ export default function GameSetupScreen() {
         <TouchableOpacity
           style={styles.startBtn}
           activeOpacity={0.85}
-          onPress={() => router.push('/live-scoring')}
+          onPress={handleStartPress}
           testID="start-match-button"
         >
           <Play size={20} color={Colors.white} fill={Colors.white} />
           <Text style={styles.startBtnText}>START MATCH</Text>
         </TouchableOpacity>
       </View>
+
+      {isStartConfirmVisible && (
+        <View style={styles.confirmOverlay} testID="start-confirm-overlay">
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Start Game</Text>
+            <Text style={styles.confirmMessage}>
+              Are you sure you want to start the game? The game clock will begin when you press Continue.
+            </Text>
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmBackBtn}
+                onPress={handleConfirmBack}
+                testID="start-confirm-back"
+              >
+                <Text style={styles.confirmBackText}>Back to setup</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmContinueBtn}
+                onPress={handleConfirmContinue}
+                testID="start-confirm-continue"
+              >
+                <Text style={styles.confirmContinueText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </View>
   );
 }
@@ -450,5 +494,69 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.white,
     letterSpacing: 1,
+  },
+  confirmOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  confirmCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  confirmTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 10,
+  },
+  confirmMessage: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 20,
+  },
+  confirmActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  confirmBackBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.gray300,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+  },
+  confirmBackText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  confirmContinueBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.dark,
+  },
+  confirmContinueText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 0.4,
   },
 });
