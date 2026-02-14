@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Settings, ListChecks, Timer, Flag, Coffee, Plus } from 'lucide-react-native';
@@ -15,6 +16,28 @@ import Colors from '@/constants/colors';
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+
+  const handleEndGamePress = () => {
+    console.log('End game pressed - showing confirmation');
+    Alert.alert(
+      'End game?',
+      'This will end the game and finalize the score.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => console.log('End game confirmation cancelled'),
+        },
+        {
+          text: 'End game',
+          style: 'destructive',
+          onPress: () => {
+            console.log('End game confirmed');
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -133,7 +156,11 @@ export default function LiveScoringScreen() {
             <Text style={styles.quickActionLabel}>HALF</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionBtn} testID="end-game-button">
+          <TouchableOpacity
+            style={styles.quickActionBtn}
+            testID="end-game-button"
+            onPress={handleEndGamePress}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.dangerLight }]}>
               <Flag size={20} color={Colors.danger} />
             </View>
