@@ -32,7 +32,13 @@ const historyGroups: HistoryGroup[] = [
   },
 ];
 
-function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
+function GameHistoryCard({
+  game,
+  onOpenLog,
+}: {
+  game: typeof mockGames[0];
+  onOpenLog: (gameId: string) => void;
+}) {
   const logEvents: GameEvent[] = mockGameEvents.slice(0, 3);
 
   return (
@@ -72,6 +78,16 @@ function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
           </View>
         ))}
       </View>
+      <TouchableOpacity
+        style={styles.viewLogButton}
+        onPress={() => {
+          console.log('GameHistory: open past game log', game.id);
+          onOpenLog(game.id);
+        }}
+        testID="history-view-log-button"
+      >
+        <Text style={styles.viewLogButtonText}>View full game log</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -111,7 +127,13 @@ export default function GameHistoryScreen() {
               </Text>
             </View>
             {group.games.map((game) => (
-              <GameHistoryCard key={game.id} game={game} />
+              <GameHistoryCard
+                key={game.id}
+                game={game}
+                onOpenLog={(gameId) => {
+                  router.push({ pathname: '/past-game-log', params: { gameId } });
+                }}
+              />
             ))}
           </View>
         ))}
@@ -221,6 +243,19 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.6,
     marginBottom: 10,
+  },
+  viewLogButton: {
+    marginTop: 12,
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  viewLogButtonText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 0.4,
   },
   logRow: {
     flexDirection: 'row',
