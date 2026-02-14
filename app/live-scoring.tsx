@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { Settings, ListChecks, Timer, Flag, Coffee, Plus } from 'lucide-react-native';
+import { ListChecks, Timer, Flag, Coffee, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
@@ -52,11 +52,9 @@ export default function LiveScoringScreen() {
           },
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.dark,
-          headerRight: () => (
-            <TouchableOpacity style={styles.settingsBtn}>
-              <Settings size={20} color={Colors.dark} />
-            </TouchableOpacity>
-          ),
+          headerLeft: () => null,
+          headerBackVisible: false,
+          headerRight: () => null,
         }}
       />
       <ScrollView
@@ -180,16 +178,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 8,
-  },
-  settingsBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.gray200,
   },
   timerCard: {
     backgroundColor: Colors.white,
