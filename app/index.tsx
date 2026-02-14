@@ -71,7 +71,13 @@ function LiveGameCard({ game }: { game: Game }) {
   );
 }
 
-function FinalGameCard({ game }: { game: Game }) {
+function FinalGameCard({
+  game,
+  onOpenHistory,
+}: {
+  game: Game;
+  onOpenHistory: (gameId: string) => void;
+}) {
   return (
     <View
       style={styles.finalGameCard}
@@ -100,6 +106,17 @@ function FinalGameCard({ game }: { game: Game }) {
           {game.awayTeam.name}
         </Text>
       </View>
+      <TouchableOpacity
+        style={styles.historyLink}
+        onPress={() => {
+          console.log('[HomeScreen] Open past game log', game.id);
+          onOpenHistory(game.id);
+        }}
+        testID="recent-game-history-link"
+      >
+        <Text style={styles.historyLinkText}>View game history</Text>
+        <ChevronRight size={16} color={Colors.primary} />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -153,14 +170,20 @@ export default function HomeScreen() {
         </TouchableOpacity>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Games</Text>
+          <Text style={styles.sectionTitle}>Recent Games (my local history)</Text>
           <TouchableOpacity onPress={handleHistoryPress} testID="see-all-history">
             <Text style={styles.seeAll}>See All</Text>
           </TouchableOpacity>
         </View>
 
         {recentFinals.map((game) => (
-          <FinalGameCard key={game.id} game={game} />
+          <FinalGameCard
+            key={game.id}
+            game={game}
+            onOpenHistory={(gameId) => {
+              router.push({ pathname: '/past-game-log', params: { gameId } });
+            }}
+          />
         ))}
 
       </ScrollView>
@@ -376,6 +399,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  historyLink: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: Colors.primaryLight,
+  },
+  historyLinkText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+    letterSpacing: 0.2,
   },
   finalTeamName: {
     fontSize: 15,
