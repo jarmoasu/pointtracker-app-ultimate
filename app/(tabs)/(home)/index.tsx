@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router';
 import { Settings, ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGames, mockSeasonSummary } from '@/mocks/games';
+import { mockGames } from '@/mocks/games';
 import { Game } from '@/types/game';
 
 function LiveBadge() {
@@ -112,15 +112,6 @@ function FinalGameCard({ game }: { game: Game }) {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={styles.statCard}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
-}
-
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -183,14 +174,6 @@ export default function HomeScreen() {
           <FinalGameCard key={game.id} game={game} />
         ))}
 
-        <Text style={styles.sectionTitle}>Season Summary</Text>
-
-        <View style={styles.statsGrid}>
-          <StatCard label="TOTAL GAMES" value={String(mockSeasonSummary.totalGames)} />
-          <StatCard label="WIN RATE" value={`${mockSeasonSummary.winRate}%`} />
-          <StatCard label="TOTAL POINTS" value={String(mockSeasonSummary.totalPoints)} />
-          <StatCard label="AVG SCORE" value={String(mockSeasonSummary.avgScore)} />
-        </View>
       </ScrollView>
     </View>
   );
@@ -430,29 +413,5 @@ const styles = StyleSheet.create({
   winnerText: {
     color: Colors.dark,
     fontWeight: '700' as const,
-  },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  statCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 14,
-    padding: 16,
-    width: '47%' as unknown as number,
-    flexGrow: 1,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-    letterSpacing: 0.8,
-    marginBottom: 6,
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '800' as const,
-    color: Colors.dark,
   },
 });
