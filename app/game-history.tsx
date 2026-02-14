@@ -6,8 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { Stack } from 'expo-router';
-import { Trash2, Calendar, Clock } from 'lucide-react-native';
+import { Stack, useRouter } from 'expo-router';
+import { Trash2, Calendar, Clock, House } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { mockGames } from '@/mocks/games';
@@ -63,11 +63,25 @@ function GameHistoryCard({ game }: { game: typeof mockGames[0] }) {
 }
 
 export default function GameHistoryScreen() {
+  const router = useRouter();
+
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
           title: 'Game History',
+          headerLeft: () => (
+            <TouchableOpacity
+              style={styles.homeButton}
+              onPress={() => {
+                console.log('GameHistory: navigating to home');
+                router.replace('/');
+              }}
+              testID="game-history-home-button"
+            >
+              <House size={20} color={Colors.primary} />
+            </TouchableOpacity>
+          ),
         }}
       />
       <ScrollView
@@ -197,5 +211,13 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     color: Colors.textSecondary,
+  },
+  homeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryLight,
   },
 });
