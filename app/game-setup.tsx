@@ -102,10 +102,13 @@ export default function GameSetupScreen() {
             />
           </View>
 
-          <View style={styles.connectionStatus}>
-            <View style={styles.connectionDot} />
-            <Text style={styles.connectionText}>CONNECTION STABLE</Text>
-          </View>
+          <TouchableOpacity
+            style={styles.claimStreamButton}
+            activeOpacity={0.85}
+            testID="claim-stream-info-button"
+          >
+            <Text style={styles.claimStreamText}>CLAIM STREAM INFO</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.sectionTitle}>Matchup</Text>
@@ -299,26 +302,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.dark,
   },
-  connectionStatus: {
-    flexDirection: 'row',
+  claimStreamButton: {
+    backgroundColor: Colors.dark,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.successLight,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
   },
-  connectionDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.success,
-  },
-  connectionText: {
+  claimStreamText: {
     fontSize: 12,
     fontWeight: '700' as const,
-    color: Colors.success,
-    letterSpacing: 0.5,
+    color: Colors.white,
+    letterSpacing: 0.8,
   },
   matchupRow: {
     flexDirection: 'row',
