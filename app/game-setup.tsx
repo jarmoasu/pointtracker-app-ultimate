@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,17 +21,27 @@ import {
 
 import Colors from '@/constants/colors';
 import { mockTeams } from '@/mocks/games';
+import { Player } from '@/types/game';
 
 export default function GameSetupScreen() {
   const router = useRouter();
   const [streamId, setStreamId] = useState('');
   const [claimCode, setClaimCode] = useState('');
-  const [homeTeam, setHomeTeam] = useState('Hurricanes');
-  const [awayTeam, setAwayTeam] = useState('Titans');
+  const [homeTeam, setHomeTeam] = useState<string>(mockTeams[0]?.name ?? 'Home');
+  const [awayTeam, setAwayTeam] = useState<string>(mockTeams[1]?.name ?? 'Away');
+  const [homePlayers, setHomePlayers] = useState<Player[]>(mockTeams[0]?.players ?? []);
+  const [awayPlayers, setAwayPlayers] = useState<Player[]>(mockTeams[1]?.players ?? []);
   const [activeRosterTab, setActiveRosterTab] = useState<'home' | 'away'>('home');
 
-  const homePlayers = mockTeams[0].players;
-  const awayPlayers = mockTeams[1].players;
+  useEffect(() => {
+    console.log('GameSetup initial teams', {
+      homeTeam,
+      awayTeam,
+      homeCount: homePlayers.length,
+      awayCount: awayPlayers.length,
+    });
+  }, [homeTeam, awayTeam, homePlayers.length, awayPlayers.length]);
+
   const currentPlayers = activeRosterTab === 'home' ? homePlayers : awayPlayers;
 
   return (
