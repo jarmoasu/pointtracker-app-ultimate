@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
-import { ListChecks, Timer, Flag, Coffee, Plus } from 'lucide-react-native';
+import { ListChecks, Timer, Flag, Coffee, Plus, Archive } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
@@ -16,8 +16,9 @@ import Colors from '@/constants/colors';
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
 
-  const handleEndGamePress = () => {
+  const handleEndGamePress = useCallback(() => {
     console.log('End game pressed - showing confirmation');
     Alert.alert(
       'End game?',
@@ -32,12 +33,18 @@ export default function LiveScoringScreen() {
           text: 'End game',
           style: 'destructive',
           onPress: () => {
-            console.log('End game confirmed');
+            console.log('End game confirmed - disabling live scoring');
+            setIsGameEnded(true);
           },
         },
       ],
     );
-  };
+  }, []);
+
+  const handleHistoryPress = useCallback(() => {
+    console.log('Navigating to game history');
+    router.push('/game-history');
+  }, [router]);
 
   return (
     <View style={styles.container}>
@@ -60,7 +67,17 @@ export default function LiveScoringScreen() {
       <ScrollView
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 20 }]}
         showsVerticalScrollIndicator={false}
+        testID="live-scoring-scroll"
       >
+        {isGameEnded ? (
+          <View style={styles.endedBanner} testID="game-ended-banner">
+            <Archive size={18} color={Colors.dark} />
+            <Text style={styles.endedBannerTitle}>Game ended</Text>
+            <Text style={styles.endedBannerText}>
+              Live scoring is disabled. Results and logs are now in Game History.
+            </Text>
+          </View>
+        ) : null}
         <View style={styles.timerCard}>
           <Text style={styles.timerText}>48:12</Text>
           <Text style={styles.periodText}>PERIOD 2</Text>
@@ -91,9 +108,10 @@ export default function LiveScoringScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.homeScoreBtn}
+          style={[styles.homeScoreBtn, isGameEnded ? styles.disabledCard : null]}
           activeOpacity={0.85}
           onPress={() => router.push('/goal-details')}
+          disabled={isGameEnded}
           testID="home-score-button"
         >
           <View>
@@ -107,9 +125,10 @@ export default function LiveScoringScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.awayScoreBtn}
+          style={[styles.awayScoreBtn, isGameEnded ? styles.disabledCard : null]}
           activeOpacity={0.85}
           onPress={() => router.push('/goal-details')}
+          disabled={isGameEnded}
           testID="away-score-button"
         >
           <View>
@@ -125,29 +144,47 @@ export default function LiveScoringScreen() {
         <TouchableOpacity
           style={styles.viewLogBtn}
           activeOpacity={0.85}
-          onPress={() => router.push('/game-log')}
+          onPress={isGameEnded ? handleHistoryPress : () => router.push('/game-log')}
           testID="view-game-log-button"
         >
-          <ListChecks size={20} color={Colors.white} />
-          <Text style={styles.viewLogText}>VIEW GAME LOG</Text>
+          {isGameEnded ? (
+            <Archive size={20} color={Colors.white} />
+          ) : (
+            <ListChecks size={20} color={Colors.white} />
+          )}
+          <Text style={styles.viewLogText}>
+            {isGameEnded ? 'VIEW GAME HISTORY' : 'VIEW GAME LOG'}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.quickActions}>
-          <TouchableOpacity style={styles.quickActionBtn} testID="home-timeout-button">
+          <TouchableOpacity
+            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            testID="home-timeout-button"
+            disabled={isGameEnded}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
               <Timer size={20} color={Colors.warning} />
             </View>
             <Text style={styles.quickActionLabel}>HOME{'\n'}TIMEOUT</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionBtn} testID="away-timeout-button">
+          <TouchableOpacity
+            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            testID="away-timeout-button"
+            disabled={isGameEnded}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
               <Timer size={20} color={Colors.warning} />
             </View>
             <Text style={styles.quickActionLabel}>AWAY{'\n'}TIMEOUT</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.quickActionBtn} testID="half-button">
+          <TouchableOpacity
+            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            testID="half-button"
+            disabled={isGameEnded}
+          >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.gray100 }]}>
               <Coffee size={20} color={Colors.textSecondary} />
             </View>
@@ -155,9 +192,10 @@ export default function LiveScoringScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.quickActionBtn}
+            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
             testID="end-game-button"
             onPress={handleEndGamePress}
+            disabled={isGameEnded}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.dangerLight }]}>
               <Flag size={20} color={Colors.danger} />
@@ -369,5 +407,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textAlign: 'center',
     lineHeight: 14,
+  },
+  disabledCard: {
+    opacity: 0.45,
+  },
+  disabledAction: {
+    opacity: 0.5,
+  },
+  endedBanner: {
+    backgroundColor: Colors.gray100,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    gap: 6,
+  },
+  endedBannerTitle: {
+    fontSize: 15,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+  },
+  endedBannerText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
 });
