@@ -68,11 +68,6 @@ export default function GameHistoryScreen() {
       <Stack.Screen
         options={{
           title: 'Game History',
-          headerRight: () => (
-            <TouchableOpacity testID="export-button">
-              <Text style={styles.exportText}>Export</Text>
-            </TouchableOpacity>
-          ),
         }}
       />
       <ScrollView
@@ -111,11 +106,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
     paddingBottom: 32,
-  },
-  exportText: {
-    fontSize: 16,
-    fontWeight: '600' as const,
-    color: Colors.primary,
   },
   groupHeader: {
     flexDirection: 'row',
