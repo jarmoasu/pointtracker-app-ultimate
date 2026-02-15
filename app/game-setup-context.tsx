@@ -15,6 +15,10 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [homeScore, setHomeScore] = useState<number>(0);
   const [awayScore, setAwayScore] = useState<number>(0);
   const [liveEvents, setLiveEvents] = useState<GameEvent[]>([]);
+  const hasHalftimeEvent = useMemo<boolean>(
+    () => liveEvents.some((event) => event.type === 'halftime'),
+    [liveEvents],
+  );
 
   const addPlayer = useCallback(
     (side: TeamSide, name: string, number: string) => {
@@ -131,6 +135,27 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayScore, awayTeam, homeScore, homeTeam],
   );
 
+  const addHalftimeEvent = useCallback(
+    (params: { gameTime: string }) => {
+      if (hasHalftimeEvent) {
+        console.log('GameSetup halftime already logged');
+        return null;
+      }
+
+      const newEvent: GameEvent = {
+        id: createId(),
+        type: 'halftime',
+        gameTime: params.gameTime,
+        isSynced: false,
+      };
+
+      setLiveEvents((prev) => [newEvent, ...prev]);
+      console.log('GameSetup add halftime event', { newEvent });
+      return newEvent;
+    },
+    [hasHalftimeEvent],
+  );
+
   return {
     homeTeamName,
     awayTeamName,
@@ -147,5 +172,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     updatePlayer,
     removePlayer,
     addGoalEvent,
+    addHalftimeEvent,
+    hasHalftimeEvent,
   };
 });

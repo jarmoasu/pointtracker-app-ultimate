@@ -18,7 +18,7 @@ import { useGameSetup } from '@/app/game-setup-context';
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { homeTeam, awayTeam, homeScore, awayScore } = useGameSetup();
+  const { homeTeam, awayTeam, homeScore, awayScore, addHalftimeEvent, hasHalftimeEvent } = useGameSetup();
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
   const [period] = useState<number>(1);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -120,6 +120,16 @@ export default function LiveScoringScreen() {
     },
     [getRoundedGameTime, router],
   );
+
+  const handleHalftimePress = useCallback(() => {
+    const roundedTime = getRoundedGameTime();
+    const halftimeEvent = addHalftimeEvent({ gameTime: roundedTime });
+    if (!halftimeEvent) {
+      Alert.alert('Half-time already logged', 'Only one half-time can be added per game.');
+      return;
+    }
+    console.log('LiveScoring halftime logged', halftimeEvent);
+  }, [addHalftimeEvent, getRoundedGameTime]);
 
   return (
     <View style={styles.container}>
@@ -258,12 +268,13 @@ export default function LiveScoringScreen() {
           <TouchableOpacity
             style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
             testID="half-button"
-            disabled={isGameEnded}
+            onPress={handleHalftimePress}
+            disabled={isGameEnded || hasHalftimeEvent}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.gray100 }]}>
               <Coffee size={20} color={Colors.textSecondary} />
             </View>
-            <Text style={styles.quickActionLabel}>HALF</Text>
+            <Text style={styles.quickActionLabel}>{hasHalftimeEvent ? 'HALF LOGGED' : 'HALF'}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
