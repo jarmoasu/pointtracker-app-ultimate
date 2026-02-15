@@ -73,6 +73,29 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     console.log('GameSetup remove player', { side, playerId });
   }, []);
 
+
+  const homeTeam = useMemo<Team>(
+    () => ({
+      id: 'home',
+      name: homeTeamName.trim() || 'Home Team',
+      abbreviation: homeTeamName.trim().slice(0, 3).toUpperCase() || 'HOM',
+      color: '#2196F3',
+      players: homePlayers,
+    }),
+    [homeTeamName, homePlayers],
+  );
+
+  const awayTeam = useMemo<Team>(
+    () => ({
+      id: 'away',
+      name: awayTeamName.trim() || 'Away Team',
+      abbreviation: awayTeamName.trim().slice(0, 3).toUpperCase() || 'AWY',
+      color: '#1A2138',
+      players: awayPlayers,
+    }),
+    [awayTeamName, awayPlayers],
+  );
+
   const addGoalEvent = useCallback(
     (params: {
       side: TeamSide;
@@ -106,28 +129,6 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       return newEvent;
     },
     [awayScore, awayTeam, homeScore, homeTeam],
-  );
-
-  const homeTeam = useMemo<Team>(
-    () => ({
-      id: 'home',
-      name: homeTeamName.trim() || 'Home Team',
-      abbreviation: homeTeamName.trim().slice(0, 3).toUpperCase() || 'HOM',
-      color: '#2196F3',
-      players: homePlayers,
-    }),
-    [homeTeamName, homePlayers],
-  );
-
-  const awayTeam = useMemo<Team>(
-    () => ({
-      id: 'away',
-      name: awayTeamName.trim() || 'Away Team',
-      abbreviation: awayTeamName.trim().slice(0, 3).toUpperCase() || 'AWY',
-      color: '#1A2138',
-      players: awayPlayers,
-    }),
-    [awayTeamName, awayPlayers],
   );
 
   return {
