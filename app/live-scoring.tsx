@@ -1,4 +1,5 @@
 import React, { useCallback, useState } from 'react';
+
 import {
   View,
   Text,
@@ -12,10 +13,12 @@ import { ListChecks, Timer, Flag, Coffee, Plus, Archive } from 'lucide-react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
+import { useGameSetup } from '@/app/game-setup-context';
 
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { homeTeam, awayTeam } = useGameSetup();
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
 
   const handleEndGamePress = useCallback(() => {
@@ -85,7 +88,7 @@ export default function LiveScoringScreen() {
           <View style={styles.scoreBoard}>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>HOME</Text>
-              <Text style={styles.scoreTeam}>HOME TEAM</Text>
+              <Text style={styles.scoreTeam}>{homeTeam.name}</Text>
               <Text style={styles.scoreNumber}>12</Text>
               <View style={styles.scoreDots}>
                 <View style={[styles.scoreDot, styles.scoreDotActive]} />
@@ -96,7 +99,7 @@ export default function LiveScoringScreen() {
             <Text style={styles.scoreDivider}>VS</Text>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>VISITOR</Text>
-              <Text style={styles.scoreTeam}>AWAY TEAM</Text>
+              <Text style={styles.scoreTeam}>{awayTeam.name}</Text>
               <Text style={styles.scoreNumber}>10</Text>
               <View style={styles.scoreDots}>
                 <View style={styles.scoreDot} />
@@ -116,7 +119,7 @@ export default function LiveScoringScreen() {
         >
           <View>
             <Text style={styles.scoreBtnLabel}>HOME</Text>
-            <Text style={styles.scoreBtnTeam}>HOME TEAM</Text>
+            <Text style={styles.scoreBtnTeam}>{homeTeam.name}</Text>
             <Text style={styles.scoreBtnAction}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlus}>
@@ -133,7 +136,7 @@ export default function LiveScoringScreen() {
         >
           <View>
             <Text style={styles.scoreBtnLabelDark}>VISITOR</Text>
-            <Text style={styles.scoreBtnTeamDark}>AWAY TEAM</Text>
+            <Text style={styles.scoreBtnTeamDark}>{awayTeam.name}</Text>
             <Text style={styles.scoreBtnActionDark}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlusDark}>

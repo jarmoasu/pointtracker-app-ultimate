@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -11,28 +11,37 @@ import { Stack, useRouter } from 'expo-router';
 import { Search, Check, Save, Trash2, Ban } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockTeams } from '@/mocks/games';
-
-const scoringTeam = mockTeams[0];
-const players = scoringTeam?.players ?? [];
+import { useGameSetup } from '@/app/game-setup-context';
 
 export default function GoalDetailsScreen() {
   const router = useRouter();
+  const { homeTeam } = useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
   const [assistSearch, setAssistSearch] = useState<string>('');
   const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
   const [selectedAssist, setSelectedAssist] = useState<string | null>(null);
 
-  const filteredScorers = players.filter(
-    (p) =>
-      p.name.toLowerCase().includes(scorerSearch.toLowerCase()) ||
-      p.number.includes(scorerSearch)
+  const scoringTeam = homeTeam;
+  const players = scoringTeam?.players ?? [];
+
+  const filteredScorers = useMemo(
+    () =>
+      players.filter(
+        (p) =>
+          p.name.toLowerCase().includes(scorerSearch.toLowerCase()) ||
+          p.number.includes(scorerSearch),
+      ),
+    [players, scorerSearch],
   );
 
-  const filteredAssists = players.filter(
-    (p) =>
-      p.name.toLowerCase().includes(assistSearch.toLowerCase()) ||
-      p.number.includes(assistSearch)
+  const filteredAssists = useMemo(
+    () =>
+      players.filter(
+        (p) =>
+          p.name.toLowerCase().includes(assistSearch.toLowerCase()) ||
+          p.number.includes(assistSearch),
+      ),
+    [players, assistSearch],
   );
 
   return (

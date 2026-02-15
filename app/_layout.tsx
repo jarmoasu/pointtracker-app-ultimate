@@ -4,6 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
+import { GameSetupProvider } from "./game-setup-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -57,7 +58,9 @@ export default function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
-        <RootLayoutNav />
+        <GameSetupProvider>
+          <RootLayoutNav />
+        </GameSetupProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>
   );

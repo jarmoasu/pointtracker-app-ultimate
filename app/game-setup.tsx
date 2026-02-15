@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import {
@@ -20,28 +21,117 @@ import {
 
 import Colors from '@/constants/colors';
 import { Player } from '@/types/game';
+import { useGameSetup, TeamSide } from '@/app/game-setup-context';
 
 export default function GameSetupScreen() {
   const router = useRouter();
-  const [streamId, setStreamId] = useState('');
-  const [claimCode, setClaimCode] = useState('');
-  const [homeTeam, setHomeTeam] = useState<string>('');
-  const [awayTeam, setAwayTeam] = useState<string>('');
-  const [homePlayers, setHomePlayers] = useState<Player[]>([]);
-  const [awayPlayers, setAwayPlayers] = useState<Player[]>([]);
-  const [activeRosterTab, setActiveRosterTab] = useState<'home' | 'away'>('home');
+  const [streamId, setStreamId] = useState<string>('');
+  const [claimCode, setClaimCode] = useState<string>('');
+  const {
+    homeTeamName,
+    awayTeamName,
+    homePlayers,
+    awayPlayers,
+    setHomeTeamName,
+    setAwayTeamName,
+    addPlayer,
+    updatePlayer,
+    removePlayer,
+  } = useGameSetup();
+  const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
   const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
+  const [isAddPlayerVisible, setIsAddPlayerVisible] = useState<boolean>(false);
+  const [isEditPlayerVisible, setIsEditPlayerVisible] = useState<boolean>(false);
+  const [playerNameInput, setPlayerNameInput] = useState<string>('');
+  const [playerNumberInput, setPlayerNumberInput] = useState<string>('');
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('GameSetup initial teams', {
-      homeTeam,
-      awayTeam,
+      homeTeamName,
+      awayTeamName,
       homeCount: homePlayers.length,
       awayCount: awayPlayers.length,
     });
-  }, [homeTeam, awayTeam, homePlayers.length, awayPlayers.length]);
+  }, [homeTeamName, awayTeamName, homePlayers.length, awayPlayers.length]);
 
   const currentPlayers = activeRosterTab === 'home' ? homePlayers : awayPlayers;
+
+  const resetPlayerForm = () => {
+    setPlayerNameInput('');
+    setPlayerNumberInput('');
+    setEditingPlayerId(null);
+  };
+
+  const openAddPlayer = () => {
+    console.log('GameSetup open add player', { activeRosterTab });
+    resetPlayerForm();
+    setIsAddPlayerVisible(true);
+  };
+
+  const openEditPlayer = (player: Player) => {
+    console.log('GameSetup open edit player', { playerId: player.id, activeRosterTab });
+    setPlayerNameInput(player.name);
+    setPlayerNumberInput(player.number);
+    setEditingPlayerId(player.id);
+    setIsEditPlayerVisible(true);
+  };
+
+  const closePlayerModal = () => {
+    console.log('GameSetup close player modal');
+    setIsAddPlayerVisible(false);
+    setIsEditPlayerVisible(false);
+    resetPlayerForm();
+  };
+
+  const handleSavePlayer = () => {
+    const trimmedName = playerNameInput.trim();
+    const trimmedNumber = playerNumberInput.trim();
+
+    if (!trimmedName || !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+      return;
+    }
+
+    addPlayer(activeRosterTab, trimmedName, trimmedNumber);
+    closePlayerModal();
+  };
+
+  const handleUpdatePlayer = () => {
+    if (!editingPlayerId) {
+      closePlayerModal();
+      return;
+    }
+
+    const trimmedName = playerNameInput.trim();
+    const trimmedNumber = playerNumberInput.trim();
+
+    if (!trimmedName || !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+      return;
+    }
+
+    updatePlayer(activeRosterTab, editingPlayerId, {
+      name: trimmedName,
+      number: trimmedNumber,
+    });
+    closePlayerModal();
+  };
+
+  const handleDeletePlayer = (playerId: string) => {
+    Alert.alert('Remove player?', 'This removes the player from the roster.', [
+      {
+        text: 'Cancel',
+        style: 'cancel',
+        onPress: () => console.log('GameSetup remove player cancelled'),
+      },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: () => removePlayer(activeRosterTab, playerId),
+      },
+    ]);
+  };
 
   const handleStartPress = () => {
     console.log('GameSetup start pressed');
@@ -118,8 +208,8 @@ export default function GameSetupScreen() {
             <View style={styles.teamInput}>
               <TextInput
                 style={styles.teamInputText}
-                value={homeTeam}
-                onChangeText={setHomeTeam}
+                value={homeTeamName}
+                onChangeText={setHomeTeamName}
                 testID="home-team-input"
               />
             </View>
@@ -130,8 +220,8 @@ export default function GameSetupScreen() {
             <View style={styles.teamInput}>
               <TextInput
                 style={styles.teamInputText}
-                value={awayTeam}
-                onChangeText={setAwayTeam}
+                value={awayTeamName}
+                onChangeText={setAwayTeamName}
                 testID="away-team-input"
               />
             </View>
@@ -186,24 +276,40 @@ export default function GameSetupScreen() {
             </View>
             <Text style={styles.playerName}>{player.name}</Text>
             <View style={styles.playerActions}>
-              <TouchableOpacity style={styles.playerActionBtn}>
+              <TouchableOpacity
+                style={styles.playerActionBtn}
+                onPress={() => openEditPlayer(player)}
+                testID={`edit-player-${player.id}`}
+              >
                 <Pencil size={16} color={Colors.textSecondary} />
               </TouchableOpacity>
-              <TouchableOpacity style={styles.playerActionBtn}>
+              <TouchableOpacity
+                style={styles.playerActionBtn}
+                onPress={() => handleDeletePlayer(player.id)}
+                testID={`remove-player-${player.id}`}
+              >
                 <X size={16} color={Colors.textSecondary} />
               </TouchableOpacity>
             </View>
           </View>
         ))}
 
-        <TouchableOpacity style={styles.addPlayerBtn} testID="add-player-button">
+        <TouchableOpacity
+          style={styles.addPlayerBtn}
+          testID="add-player-button"
+          onPress={openAddPlayer}
+        >
           <UserPlus size={18} color={Colors.textSecondary} />
           <Text style={styles.addPlayerText}>
             ADD {activeRosterTab === 'home' ? 'HOME' : 'AWAY'} PLAYER
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.importBtn} testID="import-roster-button">
+        <TouchableOpacity
+          style={styles.importBtn}
+          testID="import-roster-button"
+          onPress={() => Alert.alert('Coming soon', 'CSV import will be available soon.')}
+        >
           <Upload size={18} color={Colors.textSecondary} />
           <Text style={styles.importText}>IMPORT ROSTER (CSV)</Text>
         </TouchableOpacity>
@@ -244,6 +350,64 @@ export default function GameSetupScreen() {
                 testID="start-confirm-continue"
               >
                 <Text style={styles.confirmContinueText}>Continue</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {(isAddPlayerVisible || isEditPlayerVisible) && (
+        <View style={styles.confirmOverlay} testID="player-modal">
+          <View style={styles.playerModalCard}>
+            <View style={styles.playerModalHeader}>
+              <Text style={styles.confirmTitle}>
+                {isEditPlayerVisible ? 'Edit Player' : 'Add Player'}
+              </Text>
+              <TouchableOpacity onPress={closePlayerModal} testID="close-player-modal">
+                <X size={18} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.inputLabel}>PLAYER NAME</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="Player name"
+                placeholderTextColor={Colors.textTertiary}
+                value={playerNameInput}
+                onChangeText={setPlayerNameInput}
+                testID="player-name-input"
+              />
+            </View>
+
+            <Text style={styles.inputLabel}>JERSEY NUMBER</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="00"
+                placeholderTextColor={Colors.textTertiary}
+                value={playerNumberInput}
+                onChangeText={setPlayerNumberInput}
+                keyboardType="number-pad"
+                testID="player-number-input"
+              />
+            </View>
+
+            <View style={styles.confirmActions}>
+              <TouchableOpacity
+                style={styles.confirmBackBtn}
+                onPress={closePlayerModal}
+                testID="player-modal-cancel"
+              >
+                <Text style={styles.confirmBackText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmContinueBtn}
+                onPress={isEditPlayerVisible ? handleUpdatePlayer : handleSavePlayer}
+                testID="player-modal-save"
+              >
+                <Text style={styles.confirmContinueText}>
+                  {isEditPlayerVisible ? 'Update' : 'Add'} Player
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -508,6 +672,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.gray200,
   },
+  playerModalCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    gap: 6,
+  },
+  playerModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   confirmTitle: {
     fontSize: 20,
     fontWeight: '700' as const,
@@ -552,8 +730,5 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.white,
     letterSpacing: 0.4,
-  },
-});
-: 0.4,
   },
 });

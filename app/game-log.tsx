@@ -12,13 +12,15 @@ import { Clock, Play, Coffee } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { mockGameEvents } from '@/mocks/games';
 import { GameEvent } from '@/types/game';
+import { useGameSetup } from '@/app/game-setup-context';
 
 function ScoreHeader() {
+  const { homeTeam, awayTeam } = useGameSetup();
   return (
     <View style={styles.scoreHeader}>
       <View style={styles.scoreCol}>
         <Text style={styles.scoreNum}>0</Text>
-        <Text style={styles.scoreTeamLabel}>HOME</Text>
+        <Text style={styles.scoreTeamLabel}>{homeTeam.abbreviation}</Text>
       </View>
       <View style={styles.scoreTimeCol}>
         <Text style={styles.scoreTimeText}>--:--</Text>
@@ -26,7 +28,7 @@ function ScoreHeader() {
       </View>
       <View style={styles.scoreCol}>
         <Text style={styles.scoreNum}>0</Text>
-        <Text style={styles.scoreTeamLabel}>AWAY</Text>
+        <Text style={styles.scoreTeamLabel}>{awayTeam.abbreviation}</Text>
       </View>
     </View>
   );
