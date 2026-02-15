@@ -25,7 +25,10 @@ export default function GoalDetailsScreen() {
 
   const scoringSide = side ?? 'home';
   const scoringTeam = scoringSide === 'home' ? homeTeam : awayTeam;
-  const players = scoringTeam?.players ?? [];
+  const players = useMemo(
+    () => (scoringTeam?.players ?? []).filter((player) => player.name.trim() !== 'Anonymous'),
+    [scoringTeam?.players],
+  );
 
   const filteredScorers = useMemo(
     () =>
@@ -101,9 +104,6 @@ export default function GoalDetailsScreen() {
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
-          <TouchableOpacity>
-            <Text style={styles.createNew}>Create New</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBox}>
@@ -165,9 +165,6 @@ export default function GoalDetailsScreen() {
             <Text style={styles.sectionTitle}>🏃 ASSIST</Text>
             <Text style={styles.optionalLabel}>optional</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.createNew}>Create New</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchBox}>
