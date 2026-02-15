@@ -156,6 +156,26 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [hasHalftimeEvent],
   );
 
+  const addTimeoutEvent = useCallback(
+    (params: { side: TeamSide; gameTime: string }) => {
+      const team = params.side === 'home' ? homeTeam : awayTeam;
+      const newEvent: GameEvent = {
+        id: createId(),
+        type: 'timeout',
+        teamId: team.id,
+        teamName: team.name,
+        gameTime: params.gameTime,
+        description: `${team.name} timeout`,
+        isSynced: false,
+      };
+
+      setLiveEvents((prev) => [newEvent, ...prev]);
+      console.log('GameSetup add timeout event', { newEvent });
+      return newEvent;
+    },
+    [awayTeam, homeTeam],
+  );
+
   return {
     homeTeamName,
     awayTeamName,
@@ -173,6 +193,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     removePlayer,
     addGoalEvent,
     addHalftimeEvent,
+    addTimeoutEvent,
     hasHalftimeEvent,
   };
 });

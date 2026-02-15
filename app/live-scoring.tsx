@@ -18,7 +18,15 @@ import { useGameSetup } from '@/app/game-setup-context';
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { homeTeam, awayTeam, homeScore, awayScore, addHalftimeEvent, hasHalftimeEvent } = useGameSetup();
+  const {
+    homeTeam,
+    awayTeam,
+    homeScore,
+    awayScore,
+    addHalftimeEvent,
+    addTimeoutEvent,
+    hasHalftimeEvent,
+  } = useGameSetup();
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
   const [period] = useState<number>(1);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -130,6 +138,15 @@ export default function LiveScoringScreen() {
     }
     console.log('LiveScoring halftime logged', halftimeEvent);
   }, [addHalftimeEvent, getRoundedGameTime]);
+
+  const handleTimeoutPress = useCallback(
+    (side: 'home' | 'away') => {
+      const roundedTime = getRoundedGameTime();
+      const timeoutEvent = addTimeoutEvent({ side, gameTime: roundedTime });
+      console.log('LiveScoring timeout logged', timeoutEvent);
+    },
+    [addTimeoutEvent, getRoundedGameTime],
+  );
 
   return (
     <View style={styles.container}>
@@ -246,6 +263,7 @@ export default function LiveScoringScreen() {
           <TouchableOpacity
             style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
             testID="home-timeout-button"
+            onPress={() => handleTimeoutPress('home')}
             disabled={isGameEnded}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
@@ -257,6 +275,7 @@ export default function LiveScoringScreen() {
           <TouchableOpacity
             style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
             testID="away-timeout-button"
+            onPress={() => handleTimeoutPress('away')}
             disabled={isGameEnded}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
