@@ -110,7 +110,11 @@ export default function LiveScoringScreen() {
   }, []);
 
   const getRoundedGameTime = useCallback(() => {
-    const roundedSeconds = Math.ceil(elapsedSeconds / 10) * 10;
+    if (elapsedSeconds <= 0) {
+      return '00:00';
+    }
+    const baseRounded = Math.ceil(elapsedSeconds / 10) * 10;
+    const roundedSeconds = elapsedSeconds % 10 === 0 ? elapsedSeconds + 10 : baseRounded;
     const displaySeconds = Number.isFinite(roundedSeconds) ? roundedSeconds : 0;
     const formatted = formatClock(displaySeconds);
     console.log('LiveScoring: rounded game time', {
