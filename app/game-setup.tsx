@@ -40,8 +40,6 @@ export default function GameSetupScreen() {
   } = useGameSetup();
   const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
   const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
-  const [isAddPlayerVisible, setIsAddPlayerVisible] = useState<boolean>(false);
-  const [isEditPlayerVisible, setIsEditPlayerVisible] = useState<boolean>(false);
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [playerNumberInput, setPlayerNumberInput] = useState<string>('');
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
@@ -63,25 +61,11 @@ export default function GameSetupScreen() {
     setEditingPlayerId(null);
   };
 
-  const openAddPlayer = () => {
-    console.log('GameSetup open add player', { activeRosterTab });
-    resetPlayerForm();
-    setIsAddPlayerVisible(true);
-  };
-
   const openEditPlayer = (player: Player) => {
     console.log('GameSetup open edit player', { playerId: player.id, activeRosterTab });
     setPlayerNameInput(player.name);
     setPlayerNumberInput(player.number);
     setEditingPlayerId(player.id);
-    setIsEditPlayerVisible(true);
-  };
-
-  const closePlayerModal = () => {
-    console.log('GameSetup close player modal');
-    setIsAddPlayerVisible(false);
-    setIsEditPlayerVisible(false);
-    resetPlayerForm();
   };
 
   const handleSavePlayer = () => {
@@ -94,12 +78,12 @@ export default function GameSetupScreen() {
     }
 
     addPlayer(activeRosterTab, trimmedName, trimmedNumber);
-    closePlayerModal();
+    resetPlayerForm();
   };
 
   const handleUpdatePlayer = () => {
     if (!editingPlayerId) {
-      closePlayerModal();
+      resetPlayerForm();
       return;
     }
 
@@ -115,7 +99,7 @@ export default function GameSetupScreen() {
       name: trimmedName,
       number: trimmedNumber,
     });
-    closePlayerModal();
+    resetPlayerForm();
   };
 
   const handleDeletePlayer = (playerId: string) => {
@@ -269,6 +253,55 @@ export default function GameSetupScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.inlinePlayerCard}>
+          <Text style={styles.inputLabel}>PLAYER NAME</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Player name"
+              placeholderTextColor={Colors.textTertiary}
+              value={playerNameInput}
+              onChangeText={setPlayerNameInput}
+              testID="player-name-input"
+            />
+          </View>
+
+          <Text style={styles.inputLabel}>JERSEY NUMBER</Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="00"
+              placeholderTextColor={Colors.textTertiary}
+              value={playerNumberInput}
+              onChangeText={setPlayerNumberInput}
+              keyboardType="number-pad"
+              testID="player-number-input"
+            />
+          </View>
+
+          <View style={styles.inlinePlayerActions}>
+            {editingPlayerId ? (
+              <TouchableOpacity
+                style={styles.inlineCancelBtn}
+                onPress={resetPlayerForm}
+                testID="player-inline-cancel"
+              >
+                <Text style={styles.inlineCancelText}>Cancel edit</Text>
+              </TouchableOpacity>
+            ) : null}
+            <TouchableOpacity
+              style={styles.inlineSaveBtn}
+              onPress={editingPlayerId ? handleUpdatePlayer : handleSavePlayer}
+              testID="add-player-button"
+            >
+              <UserPlus size={18} color={Colors.white} />
+              <Text style={styles.inlineSaveText}>
+                {editingPlayerId ? 'Update' : 'Add'} {activeRosterTab === 'home' ? 'Home' : 'Away'} Player
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {currentPlayers.map((player) => (
           <View key={player.id} style={styles.playerRow}>
             <View style={styles.playerNumber}>
@@ -293,17 +326,6 @@ export default function GameSetupScreen() {
             </View>
           </View>
         ))}
-
-        <TouchableOpacity
-          style={styles.addPlayerBtn}
-          testID="add-player-button"
-          onPress={openAddPlayer}
-        >
-          <UserPlus size={18} color={Colors.textSecondary} />
-          <Text style={styles.addPlayerText}>
-            ADD {activeRosterTab === 'home' ? 'HOME' : 'AWAY'} PLAYER
-          </Text>
-        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.importBtn}
@@ -356,63 +378,6 @@ export default function GameSetupScreen() {
         </View>
       )}
 
-      {(isAddPlayerVisible || isEditPlayerVisible) && (
-        <View style={styles.confirmOverlay} testID="player-modal">
-          <View style={styles.playerModalCard}>
-            <View style={styles.playerModalHeader}>
-              <Text style={styles.confirmTitle}>
-                {isEditPlayerVisible ? 'Edit Player' : 'Add Player'}
-              </Text>
-              <TouchableOpacity onPress={closePlayerModal} testID="close-player-modal">
-                <X size={18} color={Colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.inputLabel}>PLAYER NAME</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="Player name"
-                placeholderTextColor={Colors.textTertiary}
-                value={playerNameInput}
-                onChangeText={setPlayerNameInput}
-                testID="player-name-input"
-              />
-            </View>
-
-            <Text style={styles.inputLabel}>JERSEY NUMBER</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                placeholder="00"
-                placeholderTextColor={Colors.textTertiary}
-                value={playerNumberInput}
-                onChangeText={setPlayerNumberInput}
-                keyboardType="number-pad"
-                testID="player-number-input"
-              />
-            </View>
-
-            <View style={styles.confirmActions}>
-              <TouchableOpacity
-                style={styles.confirmBackBtn}
-                onPress={closePlayerModal}
-                testID="player-modal-cancel"
-              >
-                <Text style={styles.confirmBackText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmContinueBtn}
-                onPress={isEditPlayerVisible ? handleUpdatePlayer : handleSavePlayer}
-                testID="player-modal-save"
-              >
-                <Text style={styles.confirmContinueText}>
-                  {isEditPlayerVisible ? 'Update' : 'Add'} Player
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -672,19 +637,48 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.gray200,
   },
-  playerModalCard: {
-    width: '100%',
+  inlinePlayerCard: {
     backgroundColor: Colors.white,
-    borderRadius: 20,
-    padding: 22,
+    borderRadius: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: Colors.gray200,
-    gap: 6,
+    marginBottom: 16,
   },
-  playerModalHeader: {
+  inlinePlayerActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    gap: 10,
+    marginTop: 8,
+  },
+  inlineSaveBtn: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.dark,
+    borderRadius: 12,
+    paddingVertical: 14,
+  },
+  inlineSaveText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 0.4,
+  },
+  inlineCancelBtn: {
+    borderWidth: 1,
+    borderColor: Colors.gray300,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+    backgroundColor: Colors.white,
+  },
+  inlineCancelText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
   },
   confirmTitle: {
     fontSize: 20,
