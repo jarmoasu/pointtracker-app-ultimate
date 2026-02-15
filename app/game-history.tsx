@@ -319,18 +319,3 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primaryLight,
   },
 });
-{
-    fontSize: 14,
-    color: Colors.textSecondary,
-    fontWeight: '600' as const,
-    lineHeight: 20,
-  },
-  homeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.primaryLight,
-  },
-});

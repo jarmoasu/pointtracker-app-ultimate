@@ -512,22 +512,3 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 });
-
-    color: Colors.textTertiary,
-  },
-  gameStartBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.primaryFaded,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  gameStartText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.primary,
-    letterSpacing: 0.5,
-  },
-});
