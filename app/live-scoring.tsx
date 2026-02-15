@@ -18,10 +18,8 @@ import { useGameSetup } from '@/app/game-setup-context';
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { homeTeam, awayTeam } = useGameSetup();
+  const { homeTeam, awayTeam, homeScore, awayScore } = useGameSetup();
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
-  const [homeScore, setHomeScore] = useState<number>(0);
-  const [awayScore, setAwayScore] = useState<number>(0);
   const [period] = useState<number>(1);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
@@ -95,6 +93,34 @@ export default function LiveScoringScreen() {
     router.push('/game-history');
   }, [router]);
 
+  const formatClock = useCallback((totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    const paddedMinutes = minutes.toString().padStart(2, '0');
+    const paddedSeconds = seconds.toString().padStart(2, '0');
+    return `${paddedMinutes}:${paddedSeconds}`;
+  }, []);
+
+  const getRoundedGameTime = useCallback(() => {
+    const roundedSeconds = Math.ceil(elapsedSeconds / 10) * 10;
+    const displaySeconds = Number.isFinite(roundedSeconds) ? roundedSeconds : 0;
+    const formatted = formatClock(displaySeconds);
+    console.log('LiveScoring: rounded game time', {
+      elapsedSeconds,
+      roundedSeconds: displaySeconds,
+      formatted,
+    });
+    return formatted;
+  }, [elapsedSeconds, formatClock]);
+
+  const handleScorePress = useCallback(
+    (side: 'home' | 'away') => {
+      const roundedTime = getRoundedGameTime();
+      router.push({ pathname: '/goal-details', params: { side, time: roundedTime } });
+    },
+    [getRoundedGameTime, router],
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -159,7 +185,7 @@ export default function LiveScoringScreen() {
         <TouchableOpacity
           style={[styles.homeScoreBtn, isGameEnded ? styles.disabledCard : null]}
           activeOpacity={0.85}
-          onPress={() => router.push('/goal-details')}
+          onPress={() => handleScorePress('home')}
           disabled={isGameEnded}
           testID="home-score-button"
         >
@@ -176,7 +202,7 @@ export default function LiveScoringScreen() {
         <TouchableOpacity
           style={[styles.awayScoreBtn, isGameEnded ? styles.disabledCard : null]}
           activeOpacity={0.85}
-          onPress={() => router.push('/goal-details')}
+          onPress={() => handleScorePress('away')}
           disabled={isGameEnded}
           testID="away-score-button"
         >

@@ -10,16 +10,15 @@ import { Stack } from 'expo-router';
 import { Clock, Play, Coffee } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGameEvents } from '@/mocks/games';
 import { GameEvent } from '@/types/game';
 import { useGameSetup } from '@/app/game-setup-context';
 
 function ScoreHeader() {
-  const { homeTeam, awayTeam } = useGameSetup();
+  const { homeTeam, awayTeam, homeScore, awayScore } = useGameSetup();
   return (
     <View style={styles.scoreHeader}>
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>0</Text>
+        <Text style={styles.scoreNum}>{homeScore}</Text>
         <Text style={styles.scoreTeamLabel}>{homeTeam.abbreviation}</Text>
       </View>
       <View style={styles.scoreTimeCol}>
@@ -27,7 +26,7 @@ function ScoreHeader() {
         <Text style={styles.scorePeriod}>PERIOD --</Text>
       </View>
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>0</Text>
+        <Text style={styles.scoreNum}>{awayScore}</Text>
         <Text style={styles.scoreTeamLabel}>{awayTeam.abbreviation}</Text>
       </View>
     </View>
@@ -45,7 +44,7 @@ function SectionDivider({ label }: { label: string }) {
 }
 
 function GoalEventCard({ event }: { event: GameEvent }) {
-  const isHome = event.teamId === 't1';
+  const isHome = event.teamId === 'home';
 
   return (
     <View style={styles.eventCard} testID="goal-event-card">
@@ -182,9 +181,10 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 }
 
 export default function GameLogScreen() {
-  const justNowEvents = mockGameEvents.slice(0, 2);
-  const earlierEvents = mockGameEvents.slice(2);
-  const hasEvents = mockGameEvents.length > 0;
+  const { liveEvents } = useGameSetup();
+  const justNowEvents = liveEvents.slice(0, 2);
+  const earlierEvents = liveEvents.slice(2);
+  const hasEvents = liveEvents.length > 0;
 
   return (
     <View style={styles.container}>

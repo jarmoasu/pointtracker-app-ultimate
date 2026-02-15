@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -6,8 +6,9 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Alert,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, Check, Save, Trash2, Ban } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -15,13 +16,15 @@ import { useGameSetup } from '@/app/game-setup-context';
 
 export default function GoalDetailsScreen() {
   const router = useRouter();
-  const { homeTeam } = useGameSetup();
+  const { side, time } = useLocalSearchParams<{ side?: 'home' | 'away'; time?: string }>();
+  const { homeTeam, awayTeam, addGoalEvent } = useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
   const [assistSearch, setAssistSearch] = useState<string>('');
   const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
   const [selectedAssist, setSelectedAssist] = useState<string | null>(null);
 
-  const scoringTeam = homeTeam;
+  const scoringSide = side ?? 'home';
+  const scoringTeam = scoringSide === 'home' ? homeTeam : awayTeam;
   const players = scoringTeam?.players ?? [];
 
   const filteredScorers = useMemo(
@@ -43,6 +46,31 @@ export default function GoalDetailsScreen() {
       ),
     [players, assistSearch],
   );
+
+  const handleSave = useCallback(() => {
+    if (!selectedScorer) {
+      console.log('GoalDetails: missing scorer');
+      Alert.alert('Select a scorer', 'Please choose a goal scorer before saving.');
+      return;
+    }
+
+    const scorer = players.find((player) => player.id === selectedScorer);
+    if (!scorer) {
+      console.log('GoalDetails: scorer not found', { selectedScorer });
+      Alert.alert('Scorer not found', 'Please select a valid scorer.');
+      return;
+    }
+
+    const assist =
+      selectedAssist && selectedAssist !== 'none'
+        ? players.find((player) => player.id === selectedAssist) ?? null
+        : null;
+
+    const gameTime = time ?? '--:--';
+    addGoalEvent({ side: scoringSide, scorer, assist, gameTime });
+    console.log('GoalDetails: saved goal event', { scorer, assist, gameTime, scoringSide });
+    router.back();
+  }, [addGoalEvent, players, router, scoringSide, selectedAssist, selectedScorer, time]);
 
   return (
     <View style={styles.container}>
@@ -66,7 +94,7 @@ export default function GoalDetailsScreen() {
           </View>
           <View style={styles.clockCard}>
             <Text style={styles.clockIcon}>⏱</Text>
-            <Text style={styles.clockTime}>--:--</Text>
+            <Text style={styles.clockTime}>{time ?? '--:--'}</Text>
             <Text style={styles.clockLabel}>GAME CLOCK</Text>
           </View>
         </View>
@@ -203,7 +231,7 @@ export default function GoalDetailsScreen() {
         <TouchableOpacity
           style={styles.saveBtn}
           activeOpacity={0.85}
-          onPress={() => router.back()}
+          onPress={handleSave}
           testID="save-goal-button"
         >
           <Save size={20} color={Colors.white} />

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 
-import { Player, Team } from '@/types/game';
+import { GameEvent, Player, Team } from '@/types/game';
 
 export type TeamSide = 'home' | 'away';
 
@@ -12,6 +12,9 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [awayTeamName, setAwayTeamName] = useState<string>('');
   const [homePlayers, setHomePlayers] = useState<Player[]>([]);
   const [awayPlayers, setAwayPlayers] = useState<Player[]>([]);
+  const [homeScore, setHomeScore] = useState<number>(0);
+  const [awayScore, setAwayScore] = useState<number>(0);
+  const [liveEvents, setLiveEvents] = useState<GameEvent[]>([]);
 
   const addPlayer = useCallback(
     (side: TeamSide, name: string, number: string) => {
@@ -70,6 +73,41 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     console.log('GameSetup remove player', { side, playerId });
   }, []);
 
+  const addGoalEvent = useCallback(
+    (params: {
+      side: TeamSide;
+      scorer: Player;
+      assist?: Player | null;
+      gameTime: string;
+    }) => {
+      const isHome = params.side === 'home';
+      const nextHome = isHome ? homeScore + 1 : homeScore;
+      const nextAway = isHome ? awayScore : awayScore + 1;
+      const team = isHome ? homeTeam : awayTeam;
+
+      const newEvent: GameEvent = {
+        id: createId(),
+        type: 'goal',
+        teamId: team.id,
+        teamName: team.name,
+        scorerNumber: params.scorer.number,
+        scorerName: params.scorer.name,
+        assistNumber: params.assist?.number,
+        assistName: params.assist?.name,
+        gameTime: params.gameTime,
+        scoreAtEvent: { home: nextHome, away: nextAway },
+        isSynced: false,
+      };
+
+      setLiveEvents((prev) => [newEvent, ...prev]);
+      setHomeScore(nextHome);
+      setAwayScore(nextAway);
+      console.log('GameSetup add goal event', { newEvent });
+      return newEvent;
+    },
+    [awayScore, awayTeam, homeScore, homeTeam],
+  );
+
   const homeTeam = useMemo<Team>(
     () => ({
       id: 'home',
@@ -99,10 +137,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     awayPlayers,
     homeTeam,
     awayTeam,
+    homeScore,
+    awayScore,
+    liveEvents,
     setHomeTeamName,
     setAwayTeamName,
     addPlayer,
     updatePlayer,
     removePlayer,
+    addGoalEvent,
   };
 });
