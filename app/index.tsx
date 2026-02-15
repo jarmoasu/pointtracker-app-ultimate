@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -130,7 +131,7 @@ export default function HomeScreen() {
 
   const handleHistoryPress = useCallback(() => {
     console.log('[HomeScreen] Navigate to game history');
-    router.push('/game-history');
+    router.push('/game-history' as Href);
   }, [router]);
 
   return (
@@ -154,7 +155,7 @@ export default function HomeScreen() {
           activeOpacity={0.85}
           onPress={() => {
             console.log('[HomeScreen] New game pressed');
-            router.push('/game-setup');
+            router.push('/game-setup' as Href);
           }}
           testID="new-game-button"
         >
@@ -183,7 +184,7 @@ export default function HomeScreen() {
               key={game.id}
               game={game}
               onOpenHistory={(gameId) => {
-                router.push({ pathname: '/past-game-log', params: { gameId } });
+                router.push({ pathname: '/past-game-log', params: { gameId } } as Href);
               }}
             />
           ))

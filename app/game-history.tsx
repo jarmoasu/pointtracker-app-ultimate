@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { Trash2, Calendar, Clock, House } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -124,7 +125,7 @@ export default function GameHistoryScreen() {
                 key={game.id}
                 game={game}
                 onOpenLog={(gameId) => {
-                  router.push({ pathname: '/past-game-log', params: { gameId } });
+                  router.push({ pathname: '/past-game-log', params: { gameId } } as Href);
                 }}
               />
             ))}
@@ -266,11 +267,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     color: Colors.textSecondary,
-  },
-  logEmptyText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textTertiary,
   },
   logEmptyText: {
     fontSize: 12,

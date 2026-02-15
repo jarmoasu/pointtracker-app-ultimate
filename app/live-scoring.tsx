@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { ListChecks, Timer, Flag, Coffee, Plus, Archive } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -99,7 +100,7 @@ export default function LiveScoringScreen() {
 
   const handleHistoryPress = useCallback(() => {
     console.log('Navigating to game history');
-    router.push('/game-history');
+    router.push('/game-history' as Href);
   }, [router]);
 
   const formatClock = useCallback((totalSeconds: number) => {
@@ -129,7 +130,7 @@ export default function LiveScoringScreen() {
   const handleScorePress = useCallback(
     (side: 'home' | 'away') => {
       const roundedTime = getRoundedGameTime();
-      router.push({ pathname: '/goal-details', params: { side, time: roundedTime } });
+      router.push({ pathname: '/goal-details', params: { side, time: roundedTime } } as Href);
     },
     [getRoundedGameTime, router],
   );
@@ -251,7 +252,7 @@ export default function LiveScoringScreen() {
         <TouchableOpacity
           style={styles.viewLogBtn}
           activeOpacity={0.85}
-          onPress={isGameEnded ? handleHistoryPress : () => router.push('/game-log')}
+          onPress={isGameEnded ? handleHistoryPress : () => router.push('/game-log' as Href)}
           testID="view-game-log-button"
         >
           {isGameEnded ? (

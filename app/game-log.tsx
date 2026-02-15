@@ -8,6 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import { Clock, Play, Coffee } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -261,7 +262,7 @@ export default function GameLogScreen() {
           side: event.teamId === 'away' ? 'away' : 'home',
           time: event.gameTime,
         },
-      });
+      } as Href);
     },
     [router],
   );

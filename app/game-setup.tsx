@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
+import type { Href } from 'expo-router';
 import {
   Wifi,
   KeyRound,
@@ -125,7 +126,7 @@ export default function GameSetupScreen() {
   const handleConfirmContinue = () => {
     console.log('GameSetup confirm continue');
     setIsStartConfirmVisible(false);
-    router.push('/live-scoring');
+    router.push('/live-scoring' as Href);
   };
 
   const handleConfirmBack = () => {
