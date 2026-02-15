@@ -15,6 +15,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [homeScore, setHomeScore] = useState<number>(0);
   const [awayScore, setAwayScore] = useState<number>(0);
   const [liveEvents, setLiveEvents] = useState<GameEvent[]>([]);
+  const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
   const hasHalftimeEvent = useMemo<boolean>(
     () => liveEvents.some((event) => event.type === 'halftime'),
     [liveEvents],
@@ -176,6 +177,46 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayTeam, homeTeam],
   );
 
+  const updateGoalEvent = useCallback(
+    (eventId: string, updates: { scorer: Player; assist?: Player | null }) => {
+      setLiveEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId
+            ? {
+                ...event,
+                scorerNumber: updates.scorer.number,
+                scorerName: updates.scorer.name,
+                assistNumber: updates.assist?.number,
+                assistName: updates.assist?.name,
+              }
+            : event,
+        ),
+      );
+      console.log('GameSetup update goal event', { eventId, updates });
+    },
+    [],
+  );
+
+  const updateTimeoutEvent = useCallback(
+    (eventId: string, side: TeamSide) => {
+      const team = side === 'home' ? homeTeam : awayTeam;
+      setLiveEvents((prev) =>
+        prev.map((event) =>
+          event.id === eventId
+            ? {
+                ...event,
+                teamId: team.id,
+                teamName: team.name,
+                description: `${team.name} timeout`,
+              }
+            : event,
+        ),
+      );
+      console.log('GameSetup update timeout event', { eventId, side });
+    },
+    [awayTeam, homeTeam],
+  );
+
   return {
     homeTeamName,
     awayTeamName,
@@ -195,5 +236,9 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     addHalftimeEvent,
     addTimeoutEvent,
     hasHalftimeEvent,
+    isGameEnded,
+    setIsGameEnded,
+    updateGoalEvent,
+    updateTimeoutEvent,
   };
 });

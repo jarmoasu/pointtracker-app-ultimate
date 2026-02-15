@@ -5,8 +5,9 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { Clock, Play, Coffee } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
@@ -43,7 +44,15 @@ function SectionDivider({ label }: { label: string }) {
   );
 }
 
-function GoalEventCard({ event }: { event: GameEvent }) {
+function GoalEventCard({
+  event,
+  canEdit,
+  onEdit,
+}: {
+  event: GameEvent;
+  canEdit: boolean;
+  onEdit: (event: GameEvent) => void;
+}) {
   const isHome = event.teamId === 'home';
 
   return (
@@ -111,9 +120,15 @@ function GoalEventCard({ event }: { event: GameEvent }) {
           </>
         )}
 
-        <TouchableOpacity style={styles.editBtn}>
-          <Text style={styles.editBtnText}>edit</Text>
-        </TouchableOpacity>
+        {canEdit ? (
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => onEdit(event)}
+            testID={`edit-goal-${event.id}`}
+          >
+            <Text style={styles.editBtnText}>edit</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       {event.scoreAtEvent && (
@@ -132,7 +147,15 @@ function GoalEventCard({ event }: { event: GameEvent }) {
   );
 }
 
-function TimeoutEvent({ event }: { event: GameEvent }) {
+function TimeoutEvent({
+  event,
+  canEdit,
+  onEdit,
+}: {
+  event: GameEvent;
+  canEdit: boolean;
+  onEdit: (event: GameEvent) => void;
+}) {
   return (
     <View style={styles.timeoutCard} testID="timeout-event-card">
       <View style={styles.timeoutLeft}>
@@ -144,9 +167,14 @@ function TimeoutEvent({ event }: { event: GameEvent }) {
       </View>
       <View style={styles.timeoutRight}>
         <Text style={styles.eventTime}>{event.gameTime}</Text>
-        <TouchableOpacity>
-          <Text style={styles.editBtnText}>edit</Text>
-        </TouchableOpacity>
+        {canEdit ? (
+          <TouchableOpacity
+            onPress={() => onEdit(event)}
+            testID={`edit-timeout-${event.id}`}
+          >
+            <Text style={styles.editBtnText}>edit</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -181,10 +209,47 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 }
 
 export default function GameLogScreen() {
-  const { liveEvents } = useGameSetup();
+  const router = useRouter();
+  const { liveEvents, isGameEnded, updateTimeoutEvent } = useGameSetup();
   const justNowEvents = liveEvents.slice(0, 2);
   const earlierEvents = liveEvents.slice(2);
   const hasEvents = liveEvents.length > 0;
+
+  const handleEditGoal = React.useCallback(
+    (event: GameEvent) => {
+      console.log('GameLog: edit goal event', event);
+      router.push({
+        pathname: '/goal-details',
+        params: {
+          eventId: event.id,
+          side: event.teamId === 'away' ? 'away' : 'home',
+          time: event.gameTime,
+        },
+      });
+    },
+    [router],
+  );
+
+  const handleEditTimeout = React.useCallback(
+    (event: GameEvent) => {
+      console.log('GameLog: edit timeout event', event);
+      Alert.alert('Edit timeout', 'Select the team for this timeout.', [
+        {
+          text: 'Home team',
+          onPress: () => updateTimeoutEvent(event.id, 'home'),
+        },
+        {
+          text: 'Away team',
+          onPress: () => updateTimeoutEvent(event.id, 'away'),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+    },
+    [updateTimeoutEvent],
+  );
 
   return (
     <View style={styles.container}>
@@ -207,16 +272,48 @@ export default function GameLogScreen() {
             <SectionDivider label="JUST NOW" />
 
             {justNowEvents.map((event) => {
-              if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-              if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+              if (event.type === 'goal')
+                return (
+                  <GoalEventCard
+                    key={event.id}
+                    event={event}
+                    canEdit={!isGameEnded}
+                    onEdit={handleEditGoal}
+                  />
+                );
+              if (event.type === 'timeout')
+                return (
+                  <TimeoutEvent
+                    key={event.id}
+                    event={event}
+                    canEdit={!isGameEnded}
+                    onEdit={handleEditTimeout}
+                  />
+                );
               return null;
             })}
 
             <SectionDivider label="EARLIER" />
 
             {earlierEvents.map((event) => {
-              if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-              if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+              if (event.type === 'goal')
+                return (
+                  <GoalEventCard
+                    key={event.id}
+                    event={event}
+                    canEdit={!isGameEnded}
+                    onEdit={handleEditGoal}
+                  />
+                );
+              if (event.type === 'timeout')
+                return (
+                  <TimeoutEvent
+                    key={event.id}
+                    event={event}
+                    canEdit={!isGameEnded}
+                    onEdit={handleEditTimeout}
+                  />
+                );
               if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
               if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
               return null;

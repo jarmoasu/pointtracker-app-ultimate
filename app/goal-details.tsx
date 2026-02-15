@@ -16,8 +16,13 @@ import { useGameSetup } from '@/app/game-setup-context';
 
 export default function GoalDetailsScreen() {
   const router = useRouter();
-  const { side, time } = useLocalSearchParams<{ side?: 'home' | 'away'; time?: string }>();
-  const { homeTeam, awayTeam, addGoalEvent, addPlayer } = useGameSetup();
+  const { side, time, eventId } = useLocalSearchParams<{
+    side?: 'home' | 'away';
+    time?: string;
+    eventId?: string;
+  }>();
+  const { homeTeam, awayTeam, addGoalEvent, addPlayer, liveEvents, updateGoalEvent } =
+    useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
   const [assistSearch, setAssistSearch] = useState<string>('');
   const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
@@ -26,7 +31,14 @@ export default function GoalDetailsScreen() {
   const [newPlayerName, setNewPlayerName] = useState<string>('');
   const [newPlayerNumber, setNewPlayerNumber] = useState<string>('');
 
-  const scoringSide = side ?? 'home';
+  const editingEvent = useMemo(() => {
+    if (!eventId) return null;
+    return liveEvents.find((event) => event.id === eventId) ?? null;
+  }, [eventId, liveEvents]);
+
+  const scoringSide = editingEvent?.teamId === 'away' || editingEvent?.teamId === 'home'
+    ? editingEvent.teamId
+    : side ?? 'home';
   const scoringTeam = scoringSide === 'home' ? homeTeam : awayTeam;
   const players = scoringTeam?.players ?? [];
 
@@ -91,17 +103,62 @@ export default function GoalDetailsScreen() {
         ? players.find((player) => player.id === selectedAssist) ?? null
         : null;
 
-    const gameTime = time ?? '--:--';
+    const gameTime = time ?? editingEvent?.gameTime ?? '--:--';
+
+    if (editingEvent) {
+      updateGoalEvent(editingEvent.id, { scorer, assist });
+      console.log('GoalDetails: updated goal event', { editingEvent, scorer, assist });
+      router.back();
+      return;
+    }
+
     addGoalEvent({ side: scoringSide, scorer, assist, gameTime });
     console.log('GoalDetails: saved goal event', { scorer, assist, gameTime, scoringSide });
     router.back();
-  }, [addGoalEvent, players, router, scoringSide, selectedAssist, selectedScorer, time]);
+  }, [
+    addGoalEvent,
+    editingEvent,
+    players,
+    router,
+    scoringSide,
+    selectedAssist,
+    selectedScorer,
+    time,
+    updateGoalEvent,
+  ]);
+
+  React.useEffect(() => {
+    if (!eventId) return;
+    if (!editingEvent) {
+      Alert.alert('Event not found', 'Unable to load this log item for editing.');
+      router.back();
+      return;
+    }
+
+    const scorerMatch = players.find(
+      (player) =>
+        player.number === editingEvent.scorerNumber && player.name === editingEvent.scorerName,
+    );
+    if (scorerMatch) {
+      setSelectedScorer(scorerMatch.id);
+    }
+
+    if (editingEvent.assistNumber || editingEvent.assistName) {
+      const assistMatch = players.find(
+        (player) =>
+          player.number === editingEvent.assistNumber && player.name === editingEvent.assistName,
+      );
+      if (assistMatch) {
+        setSelectedAssist(assistMatch.id);
+      }
+    }
+  }, [editingEvent, eventId, players, router]);
 
   return (
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: 'Goal Details',
+          title: editingEvent ? 'Edit Goal' : 'Goal Details',
           presentation: 'modal',
           headerTitleStyle: { fontWeight: '700' as const, color: Colors.dark },
           headerStyle: { backgroundColor: Colors.white },

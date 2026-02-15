@@ -26,8 +26,9 @@ export default function LiveScoringScreen() {
     addHalftimeEvent,
     addTimeoutEvent,
     hasHalftimeEvent,
+    isGameEnded,
+    setIsGameEnded,
   } = useGameSetup();
-  const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
   const [period] = useState<number>(1);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
