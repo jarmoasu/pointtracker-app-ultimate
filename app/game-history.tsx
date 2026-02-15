@@ -11,25 +11,25 @@ import type { Href } from 'expo-router';
 import { Trash2, Calendar, Clock, House } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGameEvents, mockGames } from '@/mocks/games';
+import { mockGameEvents } from '@/mocks/games';
 import { GameEvent } from '@/types/game';
+import { useGameSetup } from '@/app/game-setup-context';
 
 interface HistoryGroup {
   label: string;
   count: number;
-  games: typeof mockGames;
+  games: ReturnType<typeof useGameSetup>['pastGames'];
 }
-
-const historyGroups: HistoryGroup[] = [];
 
 function GameHistoryCard({
   game,
   onOpenLog,
+  logEvents,
 }: {
-  game: typeof mockGames[0];
+  game: ReturnType<typeof useGameSetup>['pastGames'][0];
   onOpenLog: (gameId: string) => void;
+  logEvents: GameEvent[];
 }) {
-  const logEvents: GameEvent[] = mockGameEvents.slice(0, 3);
 
   return (
     <View style={styles.card} testID="history-game-card">
@@ -88,6 +88,17 @@ function GameHistoryCard({
 
 export default function GameHistoryScreen() {
   const router = useRouter();
+  const { pastGames, pastGameEvents } = useGameSetup();
+
+  const historyGroups: HistoryGroup[] = pastGames.length
+    ? [
+        {
+          label: 'PAST GAMES',
+          count: pastGames.length,
+          games: pastGames,
+        },
+      ]
+    : [];
 
   return (
     <View style={styles.container}>
@@ -124,6 +135,7 @@ export default function GameHistoryScreen() {
               <GameHistoryCard
                 key={game.id}
                 game={game}
+                logEvents={(pastGameEvents[game.id] ?? mockGameEvents).slice(0, 3)}
                 onOpenLog={(gameId) => {
                   router.push({ pathname: '/past-game-log', params: { gameId } } as Href);
                 }}
@@ -293,6 +305,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   emptyText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    fontWeight: '600' as const,
+    lineHeight: 20,
+  },
+  homeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.primaryLight,
+  },
+});
+{
     fontSize: 14,
     color: Colors.textSecondary,
     fontWeight: '600' as const,

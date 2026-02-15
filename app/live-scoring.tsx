@@ -28,7 +28,7 @@ export default function LiveScoringScreen() {
     addTimeoutEvent,
     hasHalftimeEvent,
     isGameEnded,
-    setIsGameEnded,
+    endGame,
   } = useGameSetup();
   const [period] = useState<number>(1);
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -51,13 +51,13 @@ export default function LiveScoringScreen() {
           text: 'End game',
           style: 'destructive',
           onPress: () => {
-            console.log('End game confirmed - disabling live scoring');
-            setIsGameEnded(true);
+            console.log('End game confirmed - moving to history');
+            endGame();
           },
         },
       ],
     );
-  }, []);
+  }, [endGame]);
 
   useEffect(() => {
     console.log('Live scoring clock effect', { isClockRunning, isGameEnded });

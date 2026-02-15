@@ -10,14 +10,20 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Clock, Play, Coffee } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGameEvents, mockGames } from '@/mocks/games';
+import { mockGameEvents } from '@/mocks/games';
 import { GameEvent } from '@/types/game';
+import { useGameSetup } from '@/app/game-setup-context';
 
-function ScoreHeader({ gameId }: { gameId: string }) {
-  const game = useMemo(
-    () => mockGames.find((item) => item.id === gameId),
-    [gameId],
-  );
+function ScoreHeader({
+  game,
+}: {
+  game: {
+    score: { home: number; away: number };
+    homeTeam: { abbreviation: string };
+    awayTeam: { abbreviation: string };
+    date: string;
+  } | null;
+}) {
 
   return (
     <View style={styles.scoreHeader} testID="past-game-score-header">
@@ -48,7 +54,7 @@ function SectionDivider({ label }: { label: string }) {
 }
 
 function GoalEventCard({ event }: { event: GameEvent }) {
-  const isHome = event.teamId === 't1';
+  const isHome = event.teamId === 'home';
 
   return (
     <View style={styles.eventCard} testID="past-goal-event-card">
@@ -170,11 +176,18 @@ export default function PastGameLogScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string }>();
   const selectedGameId = gameId ?? null;
+  const { pastGames, pastGameEvents } = useGameSetup();
 
-  const justNowEvents = mockGameEvents.slice(0, 2);
-  const earlierEvents = mockGameEvents.slice(2);
-  const hasGame = mockGames.length > 0 && selectedGameId !== null;
-  const hasEvents = mockGameEvents.length > 0;
+  const game = useMemo(
+    () => pastGames.find((item) => item.id === selectedGameId) ?? null,
+    [pastGames, selectedGameId],
+  );
+  const events = selectedGameId ? pastGameEvents[selectedGameId] ?? [] : [];
+  const logEvents = events.length > 0 ? events : mockGameEvents;
+  const justNowEvents = logEvents.slice(0, 2);
+  const earlierEvents = logEvents.slice(2);
+  const hasGame = Boolean(game);
+  const hasEvents = logEvents.length > 0;
 
   return (
     <View style={styles.container}>
@@ -204,7 +217,7 @@ export default function PastGameLogScreen() {
       >
         {hasGame ? (
           <>
-            <ScoreHeader gameId={selectedGameId} />
+            <ScoreHeader game={game} />
 
             {hasEvents ? (
               <>
@@ -213,6 +226,8 @@ export default function PastGameLogScreen() {
                 {justNowEvents.map((event) => {
                   if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
                   if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+                  if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
+                  if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
                   return null;
                 })}
 
@@ -479,6 +494,25 @@ const styles = StyleSheet.create({
   halftimeTime: {
     fontSize: 12,
     fontWeight: '500' as const,
+    color: Colors.textTertiary,
+  },
+  gameStartBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primaryFaded,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  gameStartText: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+    letterSpacing: 0.5,
+  },
+});
+
     color: Colors.textTertiary,
   },
   gameStartBadge: {

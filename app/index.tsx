@@ -12,7 +12,7 @@ import type { Href } from 'expo-router';
 import { ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
-import { mockGames } from '@/mocks/games';
+import { useGameSetup } from '@/app/game-setup-context';
 import { Game } from '@/types/game';
 
 function LiveBadge() {
@@ -125,8 +125,9 @@ function FinalGameCard({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { pastGames } = useGameSetup();
 
-  const recentFinals = mockGames.filter((g) => g.status === 'final').slice(0, 2);
+  const recentFinals = pastGames.filter((g) => g.status === 'final').slice(0, 2);
   const hasRecentGames = recentFinals.length > 0;
 
   const handleHistoryPress = useCallback(() => {

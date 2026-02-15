@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 
-import { GameEvent, Player, Team } from '@/types/game';
+import { Game, GameEvent, Player, Team } from '@/types/game';
 
 export type TeamSide = 'home' | 'away';
 
@@ -16,6 +16,8 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [awayScore, setAwayScore] = useState<number>(0);
   const [liveEvents, setLiveEvents] = useState<GameEvent[]>([]);
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
+  const [pastGames, setPastGames] = useState<Game[]>([]);
+  const [pastGameEvents, setPastGameEvents] = useState<Record<string, GameEvent[]>>({});
   const hasHalftimeEvent = useMemo<boolean>(
     () => liveEvents.some((event) => event.type === 'halftime'),
     [liveEvents],
@@ -246,6 +248,30 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayTeam, homeTeam],
   );
 
+  const endGame = useCallback(() => {
+    const now = new Date();
+    const date = now.toLocaleDateString();
+    const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const completedGame: Game = {
+      id: createId(),
+      homeTeam,
+      awayTeam,
+      score: { home: homeScore, away: awayScore },
+      status: 'final',
+      period: 2,
+      gameTime: 'FINAL',
+      date,
+      time,
+      pointNumber: liveEvents.filter((event) => event.type === 'goal').length,
+    };
+
+    setPastGames((prev) => [completedGame, ...prev]);
+    setPastGameEvents((prev) => ({ ...prev, [completedGame.id]: [...liveEvents] }));
+    setIsGameEnded(true);
+    console.log('GameSetup end game', { completedGame, events: liveEvents.length });
+    return completedGame;
+  }, [awayScore, awayTeam, homeScore, homeTeam, liveEvents]);
+
   return {
     homeTeamName,
     awayTeamName,
@@ -256,6 +282,8 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     homeScore,
     awayScore,
     liveEvents,
+    pastGames,
+    pastGameEvents,
     setHomeTeamName,
     setAwayTeamName,
     addPlayer,
@@ -267,6 +295,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     hasHalftimeEvent,
     isGameEnded,
     setIsGameEnded,
+    endGame,
     updateGoalEvent,
     updateTimeoutEvent,
     removeLiveEvent,
