@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   View,
@@ -20,6 +20,13 @@ export default function LiveScoringScreen() {
   const insets = useSafeAreaInsets();
   const { homeTeam, awayTeam } = useGameSetup();
   const [isGameEnded, setIsGameEnded] = useState<boolean>(false);
+  const [homeScore, setHomeScore] = useState<number>(0);
+  const [awayScore, setAwayScore] = useState<number>(0);
+  const [period] = useState<number>(1);
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
+  const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const clockStartRef = useRef<number>(Date.now());
 
   const handleEndGamePress = useCallback(() => {
     console.log('End game pressed - showing confirmation');
@@ -43,6 +50,45 @@ export default function LiveScoringScreen() {
       ],
     );
   }, []);
+
+  useEffect(() => {
+    console.log('Live scoring clock effect', { isClockRunning, isGameEnded });
+    if (isGameEnded) {
+      setIsClockRunning(false);
+    }
+  }, [isGameEnded, isClockRunning]);
+
+  useEffect(() => {
+    if (!isClockRunning) {
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+      return;
+    }
+
+    console.log('Starting game clock interval');
+    clockStartRef.current = Date.now() - elapsedSeconds * 1000;
+    clockIntervalRef.current = setInterval(() => {
+      const nextElapsed = Math.floor((Date.now() - clockStartRef.current) / 1000);
+      setElapsedSeconds(nextElapsed);
+    }, 1000);
+
+    return () => {
+      if (clockIntervalRef.current) {
+        clearInterval(clockIntervalRef.current);
+        clockIntervalRef.current = null;
+      }
+    };
+  }, [elapsedSeconds, isClockRunning]);
+
+  const formattedClock = useMemo(() => {
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    const paddedMinutes = minutes.toString().padStart(2, '0');
+    const paddedSeconds = seconds.toString().padStart(2, '0');
+    return `${paddedMinutes}:${paddedSeconds}`;
+  }, [elapsedSeconds]);
 
   const handleHistoryPress = useCallback(() => {
     console.log('Navigating to game history');
@@ -82,14 +128,14 @@ export default function LiveScoringScreen() {
           </View>
         ) : null}
         <View style={styles.timerCard}>
-          <Text style={styles.timerText}>--:--</Text>
-          <Text style={styles.periodText}>PERIOD --</Text>
+          <Text style={styles.timerText}>{formattedClock}</Text>
+          <Text style={styles.periodText}>PERIOD {period}</Text>
 
           <View style={styles.scoreBoard}>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>HOME</Text>
               <Text style={styles.scoreTeam}>{homeTeam.name}</Text>
-              <Text style={styles.scoreNumber}>12</Text>
+              <Text style={styles.scoreNumber}>{homeScore}</Text>
               <View style={styles.scoreDots}>
                 <View style={[styles.scoreDot, styles.scoreDotActive]} />
                 <View style={[styles.scoreDot, styles.scoreDotActive]} />
@@ -100,7 +146,7 @@ export default function LiveScoringScreen() {
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>VISITOR</Text>
               <Text style={styles.scoreTeam}>{awayTeam.name}</Text>
-              <Text style={styles.scoreNumber}>10</Text>
+              <Text style={styles.scoreNumber}>{awayScore}</Text>
               <View style={styles.scoreDots}>
                 <View style={styles.scoreDot} />
                 <View style={[styles.scoreDot, styles.scoreDotActive]} />
