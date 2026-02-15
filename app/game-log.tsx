@@ -48,10 +48,12 @@ function GoalEventCard({
   event,
   canEdit,
   onEdit,
+  onDelete,
 }: {
   event: GameEvent;
   canEdit: boolean;
   onEdit: (event: GameEvent) => void;
+  onDelete: (event: GameEvent) => void;
 }) {
   const isHome = event.teamId === 'home';
 
@@ -121,13 +123,21 @@ function GoalEventCard({
         )}
 
         {canEdit ? (
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => onEdit(event)}
-            testID={`edit-goal-${event.id}`}
-          >
-            <Text style={styles.editBtnText}>edit</Text>
-          </TouchableOpacity>
+          <View style={styles.eventActions}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => onEdit(event)}
+              testID={`edit-goal-${event.id}`}
+            >
+              <Text style={styles.editBtnText}>edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onDelete(event)}
+              testID={`delete-goal-${event.id}`}
+            >
+              <Text style={styles.deleteBtnText}>delete</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
       </View>
 
@@ -151,10 +161,12 @@ function TimeoutEvent({
   event,
   canEdit,
   onEdit,
+  onDelete,
 }: {
   event: GameEvent;
   canEdit: boolean;
   onEdit: (event: GameEvent) => void;
+  onDelete: (event: GameEvent) => void;
 }) {
   return (
     <View style={styles.timeoutCard} testID="timeout-event-card">
@@ -168,19 +180,35 @@ function TimeoutEvent({
       <View style={styles.timeoutRight}>
         <Text style={styles.eventTime}>{event.gameTime}</Text>
         {canEdit ? (
-          <TouchableOpacity
-            onPress={() => onEdit(event)}
-            testID={`edit-timeout-${event.id}`}
-          >
-            <Text style={styles.editBtnText}>edit</Text>
-          </TouchableOpacity>
+          <View style={styles.eventActions}>
+            <TouchableOpacity
+              onPress={() => onEdit(event)}
+              testID={`edit-timeout-${event.id}`}
+            >
+              <Text style={styles.editBtnText}>edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onDelete(event)}
+              testID={`delete-timeout-${event.id}`}
+            >
+              <Text style={styles.deleteBtnText}>delete</Text>
+            </TouchableOpacity>
+          </View>
         ) : null}
       </View>
     </View>
   );
 }
 
-function HalftimeEvent({ event }: { event: GameEvent }) {
+function HalftimeEvent({
+  event,
+  canDelete,
+  onDelete,
+}: {
+  event: GameEvent;
+  canDelete: boolean;
+  onDelete: (event: GameEvent) => void;
+}) {
   return (
     <View style={styles.halftimeDivider}>
       <View style={styles.dividerLine} />
@@ -188,6 +216,14 @@ function HalftimeEvent({ event }: { event: GameEvent }) {
         <Coffee size={14} color={Colors.textSecondary} />
         <Text style={styles.halftimeText}>HALF-TIME</Text>
         <Text style={styles.halftimeTime}>{event.gameTime}</Text>
+        {canDelete ? (
+          <TouchableOpacity
+            onPress={() => onDelete(event)}
+            testID={`delete-halftime-${event.id}`}
+          >
+            <Text style={styles.deleteBtnText}>delete</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
       <View style={styles.dividerLine} />
     </View>
@@ -210,7 +246,7 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 
 export default function GameLogScreen() {
   const router = useRouter();
-  const { liveEvents, isGameEnded, updateTimeoutEvent } = useGameSetup();
+  const { liveEvents, isGameEnded, updateTimeoutEvent, removeLiveEvent } = useGameSetup();
   const justNowEvents = liveEvents.slice(0, 2);
   const earlierEvents = liveEvents.slice(2);
   const hasEvents = liveEvents.length > 0;
@@ -251,6 +287,24 @@ export default function GameLogScreen() {
     [updateTimeoutEvent],
   );
 
+  const handleDeleteEvent = React.useCallback(
+    (event: GameEvent) => {
+      console.log('GameLog: delete event', event);
+      Alert.alert('Delete event', 'This will remove the event from the log.', [
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => removeLiveEvent(event.id),
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+      ]);
+    },
+    [removeLiveEvent],
+  );
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -279,6 +333,7 @@ export default function GameLogScreen() {
                     event={event}
                     canEdit={!isGameEnded}
                     onEdit={handleEditGoal}
+                    onDelete={handleDeleteEvent}
                   />
                 );
               if (event.type === 'timeout')
@@ -288,8 +343,19 @@ export default function GameLogScreen() {
                     event={event}
                     canEdit={!isGameEnded}
                     onEdit={handleEditTimeout}
+                    onDelete={handleDeleteEvent}
                   />
                 );
+              if (event.type === 'halftime')
+                return (
+                  <HalftimeEvent
+                    key={event.id}
+                    event={event}
+                    canDelete={!isGameEnded}
+                    onDelete={handleDeleteEvent}
+                  />
+                );
+              if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
               return null;
             })}
 
@@ -303,6 +369,7 @@ export default function GameLogScreen() {
                     event={event}
                     canEdit={!isGameEnded}
                     onEdit={handleEditGoal}
+                    onDelete={handleDeleteEvent}
                   />
                 );
               if (event.type === 'timeout')
@@ -312,9 +379,18 @@ export default function GameLogScreen() {
                     event={event}
                     canEdit={!isGameEnded}
                     onEdit={handleEditTimeout}
+                    onDelete={handleDeleteEvent}
                   />
                 );
-              if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
+              if (event.type === 'halftime')
+                return (
+                  <HalftimeEvent
+                    key={event.id}
+                    event={event}
+                    canDelete={!isGameEnded}
+                    onDelete={handleDeleteEvent}
+                  />
+                );
               if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
               return null;
             })}
@@ -498,6 +574,16 @@ const styles = StyleSheet.create({
   editBtn: {
     paddingHorizontal: 8,
   },
+  deleteBtnText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.danger,
+  },
+  eventActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   editBtnText: {
     fontSize: 13,
     fontWeight: '500' as const,
@@ -564,7 +650,7 @@ const styles = StyleSheet.create({
   halftimeBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: Colors.gray100,
     paddingHorizontal: 14,
     paddingVertical: 8,

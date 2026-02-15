@@ -177,6 +177,35 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayTeam, homeTeam],
   );
 
+  const removeLiveEvent = useCallback((eventId: string) => {
+    setLiveEvents((prev) => {
+      const remaining = prev.filter((event) => event.id !== eventId);
+      const chronological = [...remaining].reverse();
+      let home = 0;
+      let away = 0;
+
+      const recalculated = chronological.map((event) => {
+        if (event.type === 'goal') {
+          const isHome = event.teamId === 'home';
+          home = isHome ? home + 1 : home;
+          away = isHome ? away : away + 1;
+          return {
+            ...event,
+            scoreAtEvent: { home, away },
+          };
+        }
+
+        return event;
+      });
+
+      const nextEvents = recalculated.reverse();
+      setHomeScore(home);
+      setAwayScore(away);
+      console.log('GameSetup remove live event', { eventId, home, away });
+      return nextEvents;
+    });
+  }, []);
+
   const updateGoalEvent = useCallback(
     (eventId: string, updates: { scorer: Player; assist?: Player | null }) => {
       setLiveEvents((prev) =>
@@ -240,5 +269,6 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     setIsGameEnded,
     updateGoalEvent,
     updateTimeoutEvent,
+    removeLiveEvent,
   };
 });
