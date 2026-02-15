@@ -73,8 +73,8 @@ export default function GameSetupScreen() {
     const trimmedName = playerNameInput.trim();
     const trimmedNumber = playerNumberInput.trim();
 
-    if (!trimmedName || !trimmedNumber) {
-      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+    if (!trimmedName && !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name or jersey number.');
       return;
     }
 
@@ -91,8 +91,8 @@ export default function GameSetupScreen() {
     const trimmedName = playerNameInput.trim();
     const trimmedNumber = playerNumberInput.trim();
 
-    if (!trimmedName || !trimmedNumber) {
-      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+    if (!trimmedName && !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name or jersey number.');
       return;
     }
 

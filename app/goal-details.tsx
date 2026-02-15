@@ -109,8 +109,8 @@ export default function GoalDetailsScreen() {
     const trimmedName = newPlayerName.trim();
     const trimmedNumber = newPlayerNumber.trim();
 
-    if (!trimmedName || !trimmedNumber) {
-      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+    if (!trimmedName && !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name or jersey number.');
       return;
     }
 
