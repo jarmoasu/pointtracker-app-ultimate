@@ -14,13 +14,13 @@ import Colors from '@/constants/colors';
 import { mockTeams } from '@/mocks/games';
 
 const scoringTeam = mockTeams[0];
-const players = scoringTeam.players;
+const players = scoringTeam?.players ?? [];
 
 export default function GoalDetailsScreen() {
   const router = useRouter();
-  const [scorerSearch, setScorerSearch] = useState('');
-  const [assistSearch, setAssistSearch] = useState('');
-  const [selectedScorer, setSelectedScorer] = useState<string | null>('p5');
+  const [scorerSearch, setScorerSearch] = useState<string>('');
+  const [assistSearch, setAssistSearch] = useState<string>('');
+  const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
   const [selectedAssist, setSelectedAssist] = useState<string | null>(null);
 
   const filteredScorers = players.filter(
@@ -52,12 +52,12 @@ export default function GoalDetailsScreen() {
         <View style={styles.topCards}>
           <View style={styles.teamCard}>
             <Text style={styles.teamCardIcon}>🏁</Text>
-            <Text style={styles.teamCardName}>{scoringTeam.name}</Text>
+            <Text style={styles.teamCardName}>{scoringTeam?.name ?? 'Home team'}</Text>
             <Text style={styles.teamCardLabel}>SCORING TEAM</Text>
           </View>
           <View style={styles.clockCard}>
             <Text style={styles.clockIcon}>⏱</Text>
-            <Text style={styles.clockTime}>14:32</Text>
+            <Text style={styles.clockTime}>--:--</Text>
             <Text style={styles.clockLabel}>GAME CLOCK</Text>
           </View>
         </View>
@@ -81,40 +81,47 @@ export default function GoalDetailsScreen() {
           />
         </View>
 
-        {filteredScorers.map((player) => (
-          <TouchableOpacity
-            key={player.id}
-            style={[
-              styles.playerRow,
-              selectedScorer === player.id && styles.playerRowSelected,
-            ]}
-            onPress={() => setSelectedScorer(player.id)}
-            activeOpacity={0.7}
-            testID={`scorer-${player.id}`}
-          >
-            <View
+        {filteredScorers.length > 0 ? (
+          filteredScorers.map((player) => (
+            <TouchableOpacity
+              key={player.id}
               style={[
-                styles.playerNumber,
-                selectedScorer === player.id && styles.playerNumberSelected,
+                styles.playerRow,
+                selectedScorer === player.id && styles.playerRowSelected,
               ]}
+              onPress={() => setSelectedScorer(player.id)}
+              activeOpacity={0.7}
+              testID={`scorer-${player.id}`}
             >
-              <Text style={styles.playerNumberText}>{player.number}</Text>
-            </View>
-            <Text
-              style={[
-                styles.playerName,
-                selectedScorer === player.id && styles.playerNameSelected,
-              ]}
-            >
-              {player.name}
-            </Text>
-            {selectedScorer === player.id && (
-              <View style={styles.checkIcon}>
-                <Check size={18} color={Colors.white} />
+              <View
+                style={[
+                  styles.playerNumber,
+                  selectedScorer === player.id && styles.playerNumberSelected,
+                ]}
+              >
+                <Text style={styles.playerNumberText}>{player.number}</Text>
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              <Text
+                style={[
+                  styles.playerName,
+                  selectedScorer === player.id && styles.playerNameSelected,
+                ]}
+              >
+                {player.name}
+              </Text>
+              {selectedScorer === player.id && (
+                <View style={styles.checkIcon}>
+                  <Check size={18} color={Colors.white} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyRoster} testID="scorer-empty">
+            <Text style={styles.emptyTitle}>No roster yet</Text>
+            <Text style={styles.emptyText}>Add players in game setup to select a scorer.</Text>
+          </View>
+        )}
 
         <View style={[styles.sectionRow, { marginTop: 24 }]}>
           <View style={styles.sectionTitleRow}>
@@ -138,35 +145,37 @@ export default function GoalDetailsScreen() {
           />
         </View>
 
-        {filteredAssists.map((player) => (
-          <TouchableOpacity
-            key={player.id}
-            style={[
-              styles.playerRow,
-              styles.assistPlayerRow,
-              selectedAssist === player.id && styles.playerRowSelected,
-            ]}
-            onPress={() => setSelectedAssist(player.id)}
-            activeOpacity={0.7}
-            testID={`assist-${player.id}`}
-          >
-            <View
+        {filteredAssists.length > 0 ? (
+          filteredAssists.map((player) => (
+            <TouchableOpacity
+              key={player.id}
               style={[
-                styles.playerNumber,
-                styles.assistPlayerNumber,
-                selectedAssist === player.id && styles.playerNumberSelected,
+                styles.playerRow,
+                styles.assistPlayerRow,
+                selectedAssist === player.id && styles.playerRowSelected,
               ]}
+              onPress={() => setSelectedAssist(player.id)}
+              activeOpacity={0.7}
+              testID={`assist-${player.id}`}
             >
-              <Text style={styles.playerNumberText}>{player.number}</Text>
-            </View>
-            <Text style={styles.playerName}>{player.name}</Text>
-            {selectedAssist === player.id && (
-              <View style={styles.checkIcon}>
-                <Check size={18} color={Colors.white} />
+              <View
+                style={[
+                  styles.playerNumber,
+                  styles.assistPlayerNumber,
+                  selectedAssist === player.id && styles.playerNumberSelected,
+                ]}
+              >
+                <Text style={styles.playerNumberText}>{player.number}</Text>
               </View>
-            )}
-          </TouchableOpacity>
-        ))}
+              <Text style={styles.playerName}>{player.name}</Text>
+              {selectedAssist === player.id && (
+                <View style={styles.checkIcon}>
+                  <Check size={18} color={Colors.white} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        ) : null}
 
         <TouchableOpacity
           style={styles.noAssistRow}
@@ -354,6 +363,26 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     color: Colors.dark,
     flex: 1,
+  },
+  emptyRoster: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   playerNameSelected: {
     fontWeight: '600' as const,

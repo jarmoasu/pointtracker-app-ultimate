@@ -17,16 +17,16 @@ function ScoreHeader() {
   return (
     <View style={styles.scoreHeader}>
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>13</Text>
-        <Text style={styles.scoreTeamLabel}>FLYERS</Text>
+        <Text style={styles.scoreNum}>0</Text>
+        <Text style={styles.scoreTeamLabel}>HOME</Text>
       </View>
       <View style={styles.scoreTimeCol}>
-        <Text style={styles.scoreTimeText}>14:02</Text>
-        <Text style={styles.scorePeriod}>PERIOD 2</Text>
+        <Text style={styles.scoreTimeText}>--:--</Text>
+        <Text style={styles.scorePeriod}>PERIOD --</Text>
       </View>
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>11</Text>
-        <Text style={styles.scoreTeamLabel}>GRAVITY</Text>
+        <Text style={styles.scoreNum}>0</Text>
+        <Text style={styles.scoreTeamLabel}>AWAY</Text>
       </View>
     </View>
   );
@@ -182,6 +182,7 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 export default function GameLogScreen() {
   const justNowEvents = mockGameEvents.slice(0, 2);
   const earlierEvents = mockGameEvents.slice(2);
+  const hasEvents = mockGameEvents.length > 0;
 
   return (
     <View style={styles.container}>
@@ -199,23 +200,32 @@ export default function GameLogScreen() {
       >
         <ScoreHeader />
 
-        <SectionDivider label="JUST NOW" />
+        {hasEvents ? (
+          <>
+            <SectionDivider label="JUST NOW" />
 
-        {justNowEvents.map((event) => {
-          if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-          if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
-          return null;
-        })}
+            {justNowEvents.map((event) => {
+              if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
+              if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+              return null;
+            })}
 
-        <SectionDivider label="EARLIER" />
+            <SectionDivider label="EARLIER" />
 
-        {earlierEvents.map((event) => {
-          if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-          if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
-          if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
-          if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
-          return null;
-        })}
+            {earlierEvents.map((event) => {
+              if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
+              if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+              if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
+              if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
+              return null;
+            })}
+          </>
+        ) : (
+          <View style={styles.emptyState} testID="game-log-empty">
+            <Text style={styles.emptyTitle}>No events yet</Text>
+            <Text style={styles.emptyText}>Log events will show up once the game starts.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -255,6 +265,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.8,
     marginTop: 2,
+  },
+  emptyState: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    marginTop: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   scoreTimeCol: {
     alignItems: 'center',

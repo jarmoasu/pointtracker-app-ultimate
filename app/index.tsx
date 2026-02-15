@@ -126,6 +126,7 @@ export default function HomeScreen() {
   const router = useRouter();
 
   const recentFinals = mockGames.filter((g) => g.status === 'final').slice(0, 2);
+  const hasRecentGames = recentFinals.length > 0;
 
   const handleHistoryPress = useCallback(() => {
     console.log('[HomeScreen] Navigate to game history');
@@ -176,15 +177,22 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {recentFinals.map((game) => (
-          <FinalGameCard
-            key={game.id}
-            game={game}
-            onOpenHistory={(gameId) => {
-              router.push({ pathname: '/past-game-log', params: { gameId } });
-            }}
-          />
-        ))}
+        {hasRecentGames ? (
+          recentFinals.map((game) => (
+            <FinalGameCard
+              key={game.id}
+              game={game}
+              onOpenHistory={(gameId) => {
+                router.push({ pathname: '/past-game-log', params: { gameId } });
+              }}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyCard} testID="recent-games-empty">
+            <Text style={styles.emptyTitle}>No recent games yet</Text>
+            <Text style={styles.emptyBody}>Start a new game to build your local history.</Text>
+          </View>
+        )
 
       </ScrollView>
     </View>
@@ -421,6 +429,25 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     color: Colors.textSecondary,
     flex: 1,
+  },
+  emptyCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  emptyBody: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   finalScore: {
     fontSize: 24,

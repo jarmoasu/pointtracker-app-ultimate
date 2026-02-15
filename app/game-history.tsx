@@ -19,18 +19,7 @@ interface HistoryGroup {
   games: typeof mockGames;
 }
 
-const historyGroups: HistoryGroup[] = [
-  {
-    label: 'AUGUST 2023',
-    count: 3,
-    games: mockGames.filter((g) => g.date.includes('Aug')),
-  },
-  {
-    label: 'JULY 2023',
-    count: 1,
-    games: mockGames.filter((g) => g.date.includes('Jul')),
-  },
-];
+const historyGroups: HistoryGroup[] = [];
 
 function GameHistoryCard({
   game,
@@ -69,14 +58,18 @@ function GameHistoryCard({
       </View>
       <View style={styles.logSection} testID="history-game-log">
         <Text style={styles.logTitle}>Game Log</Text>
-        {logEvents.map((event) => (
-          <View key={event.id} style={styles.logRow}>
-            <Text style={styles.logTime}>{event.gameTime}</Text>
-            <Text style={styles.logText}>
-              {(event.teamName ?? 'Game').toUpperCase()} · {event.type.replace('_', ' ')}
-            </Text>
-          </View>
-        ))}
+        {logEvents.length > 0 ? (
+          logEvents.map((event) => (
+            <View key={event.id} style={styles.logRow}>
+              <Text style={styles.logTime}>{event.gameTime}</Text>
+              <Text style={styles.logText}>
+                {(event.teamName ?? 'Game').toUpperCase()} · {event.type.replace('_', ' ')}
+              </Text>
+            </View>
+          ))
+        ) : (
+          <Text style={styles.logEmptyText}>No events logged yet.</Text>
+        )}
       </View>
       <TouchableOpacity
         style={styles.viewLogButton}
@@ -138,8 +131,9 @@ export default function GameHistoryScreen() {
           </View>
         ))}
         {historyGroups.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No games recorded yet</Text>
+          <View style={styles.emptyState} testID="history-empty-state">
+            <Text style={styles.emptyTitle}>No games recorded yet</Text>
+            <Text style={styles.emptyText}>Your finished games will appear here.</Text>
           </View>
         )}
       </ScrollView>
@@ -273,6 +267,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
   },
+  logEmptyText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textTertiary,
+  },
+  logEmptyText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textTertiary,
+  },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -286,9 +290,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 60,
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 14,
     color: Colors.textSecondary,
+    fontWeight: '600' as const,
+    lineHeight: 20,
   },
   homeButton: {
     width: 36,

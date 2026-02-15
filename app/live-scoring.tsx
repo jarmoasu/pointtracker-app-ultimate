@@ -79,13 +79,13 @@ export default function LiveScoringScreen() {
           </View>
         ) : null}
         <View style={styles.timerCard}>
-          <Text style={styles.timerText}>48:12</Text>
-          <Text style={styles.periodText}>PERIOD 2</Text>
+          <Text style={styles.timerText}>--:--</Text>
+          <Text style={styles.periodText}>PERIOD --</Text>
 
           <View style={styles.scoreBoard}>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>HOME</Text>
-              <Text style={styles.scoreTeam}>SPIDERS</Text>
+              <Text style={styles.scoreTeam}>HOME TEAM</Text>
               <Text style={styles.scoreNumber}>12</Text>
               <View style={styles.scoreDots}>
                 <View style={[styles.scoreDot, styles.scoreDotActive]} />
@@ -96,7 +96,7 @@ export default function LiveScoringScreen() {
             <Text style={styles.scoreDivider}>VS</Text>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>VISITOR</Text>
-              <Text style={styles.scoreTeam}>CASCADES</Text>
+              <Text style={styles.scoreTeam}>AWAY TEAM</Text>
               <Text style={styles.scoreNumber}>10</Text>
               <View style={styles.scoreDots}>
                 <View style={styles.scoreDot} />
@@ -116,7 +116,7 @@ export default function LiveScoringScreen() {
         >
           <View>
             <Text style={styles.scoreBtnLabel}>HOME</Text>
-            <Text style={styles.scoreBtnTeam}>SPIDERS</Text>
+            <Text style={styles.scoreBtnTeam}>HOME TEAM</Text>
             <Text style={styles.scoreBtnAction}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlus}>
@@ -133,7 +133,7 @@ export default function LiveScoringScreen() {
         >
           <View>
             <Text style={styles.scoreBtnLabelDark}>VISITOR</Text>
-            <Text style={styles.scoreBtnTeamDark}>CASCADES</Text>
+            <Text style={styles.scoreBtnTeamDark}>AWAY TEAM</Text>
             <Text style={styles.scoreBtnActionDark}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlusDark}>

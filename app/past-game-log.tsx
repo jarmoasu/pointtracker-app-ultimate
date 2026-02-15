@@ -15,23 +15,23 @@ import { GameEvent } from '@/types/game';
 
 function ScoreHeader({ gameId }: { gameId: string }) {
   const game = useMemo(
-    () => mockGames.find((item) => item.id === gameId) ?? mockGames[0],
+    () => mockGames.find((item) => item.id === gameId),
     [gameId],
   );
 
   return (
     <View style={styles.scoreHeader} testID="past-game-score-header">
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>{game.score.home}</Text>
-        <Text style={styles.scoreTeamLabel}>{game.homeTeam.abbreviation}</Text>
+        <Text style={styles.scoreNum}>{game?.score.home ?? 0}</Text>
+        <Text style={styles.scoreTeamLabel}>{game?.homeTeam.abbreviation ?? 'HOME'}</Text>
       </View>
       <View style={styles.scoreTimeCol}>
         <Text style={styles.scoreTimeText}>FINAL</Text>
-        <Text style={styles.scorePeriod}>{game.date}</Text>
+        <Text style={styles.scorePeriod}>{game?.date ?? '--'}</Text>
       </View>
       <View style={styles.scoreCol}>
-        <Text style={styles.scoreNum}>{game.score.away}</Text>
-        <Text style={styles.scoreTeamLabel}>{game.awayTeam.abbreviation}</Text>
+        <Text style={styles.scoreNum}>{game?.score.away ?? 0}</Text>
+        <Text style={styles.scoreTeamLabel}>{game?.awayTeam.abbreviation ?? 'AWAY'}</Text>
       </View>
     </View>
   );
@@ -169,10 +169,12 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 export default function PastGameLogScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string }>();
-  const selectedGameId = gameId ?? mockGames[0].id;
+  const selectedGameId = gameId ?? null;
 
   const justNowEvents = mockGameEvents.slice(0, 2);
   const earlierEvents = mockGameEvents.slice(2);
+  const hasGame = mockGames.length > 0 && selectedGameId !== null;
+  const hasEvents = mockGameEvents.length > 0;
 
   return (
     <View style={styles.container}>
@@ -200,25 +202,43 @@ export default function PastGameLogScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <ScoreHeader gameId={selectedGameId} />
+        {hasGame ? (
+          <>
+            <ScoreHeader gameId={selectedGameId} />
 
-        <SectionDivider label="JUST NOW" />
+            {hasEvents ? (
+              <>
+                <SectionDivider label="JUST NOW" />
 
-        {justNowEvents.map((event) => {
-          if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-          if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
-          return null;
-        })}
+                {justNowEvents.map((event) => {
+                  if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
+                  if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+                  return null;
+                })}
 
-        <SectionDivider label="EARLIER" />
+                <SectionDivider label="EARLIER" />
 
-        {earlierEvents.map((event) => {
-          if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-          if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
-          if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
-          if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
-          return null;
-        })}
+                {earlierEvents.map((event) => {
+                  if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
+                  if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
+                  if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
+                  if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
+                  return null;
+                })}
+              </>
+            ) : (
+              <View style={styles.emptyState} testID="past-log-empty">
+                <Text style={styles.emptyTitle}>No events recorded</Text>
+                <Text style={styles.emptyText}>This game has no log entries yet.</Text>
+              </View>
+            )}
+          </>
+        ) : (
+          <View style={styles.emptyState} testID="past-game-empty">
+            <Text style={styles.emptyTitle}>No past games</Text>
+            <Text style={styles.emptyText}>Once a game ends, its log appears here.</Text>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -270,6 +290,26 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.8,
     marginTop: 2,
+  },
+  emptyState: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    marginTop: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 18,
   },
   scoreTimeCol: {
     alignItems: 'center',
