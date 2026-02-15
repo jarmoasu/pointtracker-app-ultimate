@@ -142,6 +142,12 @@ export default function GoalDetailsScreen() {
       return;
     }
 
+    if (selectedAssist && selectedAssist !== 'none' && selectedAssist === selectedScorer) {
+      console.log('GoalDetails: scorer and assist match', { selectedScorer, selectedAssist });
+      Alert.alert('Invalid assist', 'Scorer and assist cannot be the same player.');
+      return;
+    }
+
     const assist =
       selectedAssist && selectedAssist !== 'none'
         ? players.find((player) => player.id === selectedAssist) ?? null
@@ -290,7 +296,13 @@ export default function GoalDetailsScreen() {
                 styles.playerRow,
                 selectedScorer === player.id && styles.playerRowSelected,
               ]}
-              onPress={() => setSelectedScorer(player.id)}
+              onPress={() => {
+                if (selectedAssist && selectedAssist !== 'none' && selectedAssist === player.id) {
+                  Alert.alert('Invalid selection', 'Assist cannot be the same as scorer.');
+                  return;
+                }
+                setSelectedScorer(player.id);
+              }}
               activeOpacity={0.7}
               testID={`scorer-${player.id}`}
             >
@@ -409,7 +421,13 @@ export default function GoalDetailsScreen() {
                 styles.assistPlayerRow,
                 selectedAssist === player.id && styles.playerRowSelected,
               ]}
-              onPress={() => setSelectedAssist(player.id)}
+              onPress={() => {
+                if (selectedScorer && selectedScorer === player.id) {
+                  Alert.alert('Invalid selection', 'Scorer cannot be the same as assist.');
+                  return;
+                }
+                setSelectedAssist(player.id);
+              }}
               activeOpacity={0.7}
               testID={`assist-${player.id}`}
             >
