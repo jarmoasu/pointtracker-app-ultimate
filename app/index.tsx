@@ -192,9 +192,7 @@ export default function HomeScreen() {
             <Text style={styles.emptyTitle}>No recent games yet</Text>
             <Text style={styles.emptyBody}>Start a new game to build your local history.</Text>
           </View>
-        )
-
-      )}
+        )}
 
       </ScrollView>
     </View>
