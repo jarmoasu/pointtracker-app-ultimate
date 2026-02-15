@@ -9,7 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Search, Check, Save, Trash2, Ban } from 'lucide-react-native';
+import { Search, Check, Save, Trash2, Ban, Plus } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
@@ -28,6 +28,7 @@ export default function GoalDetailsScreen() {
   const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
   const [selectedAssist, setSelectedAssist] = useState<string | null>(null);
   const [isNewPlayerVisible, setIsNewPlayerVisible] = useState<boolean>(false);
+  const [newPlayerTarget, setNewPlayerTarget] = useState<'scorer' | 'assist' | null>(null);
   const [newPlayerName, setNewPlayerName] = useState<string>('');
   const [newPlayerNumber, setNewPlayerNumber] = useState<string>('');
 
@@ -41,6 +42,9 @@ export default function GoalDetailsScreen() {
     : side ?? 'home';
   const scoringTeam = scoringSide === 'home' ? homeTeam : awayTeam;
   const players = scoringTeam?.players ?? [];
+
+  const trimmedScorerSearch = scorerSearch.trim();
+  const trimmedAssistSearch = assistSearch.trim();
 
   const filteredScorers = useMemo(
     () =>
@@ -62,11 +66,44 @@ export default function GoalDetailsScreen() {
     [players, assistSearch],
   );
 
+  const hasScorerMatch = useMemo(
+    () =>
+      !!trimmedScorerSearch &&
+      players.some(
+        (player) =>
+          player.name.toLowerCase() === trimmedScorerSearch.toLowerCase() ||
+          player.number === trimmedScorerSearch,
+      ),
+    [players, trimmedScorerSearch],
+  );
+
+  const hasAssistMatch = useMemo(
+    () =>
+      !!trimmedAssistSearch &&
+      players.some(
+        (player) =>
+          player.name.toLowerCase() === trimmedAssistSearch.toLowerCase() ||
+          player.number === trimmedAssistSearch,
+      ),
+    [players, trimmedAssistSearch],
+  );
+
   const resetNewPlayerForm = useCallback(() => {
     setIsNewPlayerVisible(false);
+    setNewPlayerTarget(null);
     setNewPlayerName('');
     setNewPlayerNumber('');
   }, []);
+
+  const openNewPlayerForm = useCallback(
+    (target: 'scorer' | 'assist', seedName: string) => {
+      setIsNewPlayerVisible(true);
+      setNewPlayerTarget(target);
+      setNewPlayerName(seedName);
+      setNewPlayerNumber('');
+    },
+    [],
+  );
 
   const handleAddPlayer = useCallback(() => {
     const trimmedName = newPlayerName.trim();
@@ -78,11 +115,18 @@ export default function GoalDetailsScreen() {
     }
 
     const createdPlayer = addPlayer(scoringSide, trimmedName, trimmedNumber);
-    console.log('GoalDetails add player', { createdPlayer, scoringSide });
-    setSelectedScorer(createdPlayer.id);
-    setScorerSearch('');
+    console.log('GoalDetails add player', { createdPlayer, scoringSide, newPlayerTarget });
+
+    if (newPlayerTarget === 'assist') {
+      setSelectedAssist(createdPlayer.id);
+      setAssistSearch('');
+    } else {
+      setSelectedScorer(createdPlayer.id);
+      setScorerSearch('');
+    }
+
     resetNewPlayerForm();
-  }, [addPlayer, newPlayerName, newPlayerNumber, resetNewPlayerForm, scoringSide]);
+  }, [addPlayer, newPlayerName, newPlayerNumber, newPlayerTarget, resetNewPlayerForm, scoringSide]);
 
   const handleSave = useCallback(() => {
     if (!selectedScorer) {
@@ -183,17 +227,11 @@ export default function GoalDetailsScreen() {
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
-          <TouchableOpacity
-            onPress={() => setIsNewPlayerVisible((prev) => !prev)}
-            testID="toggle-new-player"
-          >
-            <Text style={styles.createNew}>{isNewPlayerVisible ? 'Close' : 'Create New'}</Text>
-          </TouchableOpacity>
         </View>
 
-        {isNewPlayerVisible ? (
+        {isNewPlayerVisible && newPlayerTarget === 'scorer' ? (
           <View style={styles.newPlayerCard} testID="new-player-form">
-            <Text style={styles.newPlayerTitle}>Add New Player</Text>
+            <Text style={styles.newPlayerTitle}>Add New Scorer</Text>
             <View style={styles.newPlayerRow}>
               <TextInput
                 style={styles.newPlayerInput}
@@ -279,25 +317,76 @@ export default function GoalDetailsScreen() {
               )}
             </TouchableOpacity>
           ))
-        ) : (
+        ) : trimmedScorerSearch.length === 0 ? (
           <View style={styles.emptyRoster} testID="scorer-empty">
             <Text style={styles.emptyTitle}>No roster yet</Text>
             <Text style={styles.emptyText}>Add players in game setup to select a scorer.</Text>
           </View>
-        )}
+        ) : null}
+
+        {!isNewPlayerVisible && trimmedScorerSearch.length > 0 && !hasScorerMatch ? (
+          <TouchableOpacity
+            style={styles.addPlayerPrompt}
+            onPress={() => openNewPlayerForm('scorer', trimmedScorerSearch)}
+            testID="add-scorer-prompt"
+          >
+            <View style={styles.addPlayerPromptIcon}>
+              <Plus size={16} color={Colors.white} />
+            </View>
+            <View style={styles.addPlayerPromptTextWrap}>
+              <Text style={styles.addPlayerPromptTitle}>Add new player</Text>
+              <Text style={styles.addPlayerPromptText}>{`Add "${trimmedScorerSearch}" to roster`}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={[styles.sectionRow, { marginTop: 24 }]}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>🏃 ASSIST</Text>
             <Text style={styles.optionalLabel}>optional</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => setIsNewPlayerVisible((prev) => !prev)}
-            testID="toggle-new-player-assist"
-          >
-            <Text style={styles.createNew}>{isNewPlayerVisible ? 'Close' : 'Create New'}</Text>
-          </TouchableOpacity>
         </View>
+
+        {isNewPlayerVisible && newPlayerTarget === 'assist' ? (
+          <View style={styles.newPlayerCard} testID="new-player-form-assist">
+            <Text style={styles.newPlayerTitle}>Add New Assist</Text>
+            <View style={styles.newPlayerRow}>
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="Player name"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerName}
+                onChangeText={setNewPlayerName}
+                testID="new-player-name-assist"
+              />
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="#"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerNumber}
+                onChangeText={setNewPlayerNumber}
+                keyboardType="number-pad"
+                testID="new-player-number-assist"
+              />
+            </View>
+            <View style={styles.newPlayerActions}>
+              <TouchableOpacity
+                style={styles.newPlayerCancel}
+                onPress={resetNewPlayerForm}
+                testID="new-player-cancel-assist"
+              >
+                <Text style={styles.newPlayerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newPlayerSave}
+                onPress={handleAddPlayer}
+                testID="new-player-save-assist"
+              >
+                <Text style={styles.newPlayerSaveText}>Add Player</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.searchBox}>
           <Search size={18} color={Colors.textTertiary} />
@@ -341,6 +430,22 @@ export default function GoalDetailsScreen() {
               )}
             </TouchableOpacity>
           ))
+        ) : null}
+
+        {!isNewPlayerVisible && trimmedAssistSearch.length > 0 && !hasAssistMatch ? (
+          <TouchableOpacity
+            style={styles.addPlayerPrompt}
+            onPress={() => openNewPlayerForm('assist', trimmedAssistSearch)}
+            testID="add-assist-prompt"
+          >
+            <View style={styles.addPlayerPromptIcon}>
+              <Plus size={16} color={Colors.white} />
+            </View>
+            <View style={styles.addPlayerPromptTextWrap}>
+              <Text style={styles.addPlayerPromptTitle}>Add new player</Text>
+              <Text style={styles.addPlayerPromptText}>{`Add "${trimmedAssistSearch}" to roster`}</Text>
+            </View>
+          </TouchableOpacity>
         ) : null}
 
         <TouchableOpacity
@@ -469,6 +574,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.primary,
+  },
+  addPlayerPrompt: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    marginBottom: 16,
+  },
+  addPlayerPromptIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addPlayerPromptTextWrap: {
+    flex: 1,
+  },
+  addPlayerPromptTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 2,
+  },
+  addPlayerPromptText: {
+    fontSize: 13,
+    fontWeight: '500' as const,
+    color: Colors.textSecondary,
   },
   newPlayerCard: {
     backgroundColor: Colors.white,
