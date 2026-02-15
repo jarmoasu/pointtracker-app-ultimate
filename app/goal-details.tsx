@@ -17,11 +17,14 @@ import { useGameSetup } from '@/app/game-setup-context';
 export default function GoalDetailsScreen() {
   const router = useRouter();
   const { side, time } = useLocalSearchParams<{ side?: 'home' | 'away'; time?: string }>();
-  const { homeTeam, awayTeam, addGoalEvent } = useGameSetup();
+  const { homeTeam, awayTeam, addGoalEvent, addPlayer } = useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
   const [assistSearch, setAssistSearch] = useState<string>('');
   const [selectedScorer, setSelectedScorer] = useState<string | null>(null);
   const [selectedAssist, setSelectedAssist] = useState<string | null>(null);
+  const [isNewPlayerVisible, setIsNewPlayerVisible] = useState<boolean>(false);
+  const [newPlayerName, setNewPlayerName] = useState<string>('');
+  const [newPlayerNumber, setNewPlayerNumber] = useState<string>('');
 
   const scoringSide = side ?? 'home';
   const scoringTeam = scoringSide === 'home' ? homeTeam : awayTeam;
@@ -46,6 +49,28 @@ export default function GoalDetailsScreen() {
       ),
     [players, assistSearch],
   );
+
+  const resetNewPlayerForm = useCallback(() => {
+    setIsNewPlayerVisible(false);
+    setNewPlayerName('');
+    setNewPlayerNumber('');
+  }, []);
+
+  const handleAddPlayer = useCallback(() => {
+    const trimmedName = newPlayerName.trim();
+    const trimmedNumber = newPlayerNumber.trim();
+
+    if (!trimmedName || !trimmedNumber) {
+      Alert.alert('Missing details', 'Please enter a player name and jersey number.');
+      return;
+    }
+
+    const createdPlayer = addPlayer(scoringSide, trimmedName, trimmedNumber);
+    console.log('GoalDetails add player', { createdPlayer, scoringSide });
+    setSelectedScorer(createdPlayer.id);
+    setScorerSearch('');
+    resetNewPlayerForm();
+  }, [addPlayer, newPlayerName, newPlayerNumber, resetNewPlayerForm, scoringSide]);
 
   const handleSave = useCallback(() => {
     if (!selectedScorer) {
@@ -101,10 +126,54 @@ export default function GoalDetailsScreen() {
 
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
-          <TouchableOpacity>
-            <Text style={styles.createNew}>Create New</Text>
+          <TouchableOpacity
+            onPress={() => setIsNewPlayerVisible((prev) => !prev)}
+            testID="toggle-new-player"
+          >
+            <Text style={styles.createNew}>{isNewPlayerVisible ? 'Close' : 'Create New'}</Text>
           </TouchableOpacity>
         </View>
+
+        {isNewPlayerVisible ? (
+          <View style={styles.newPlayerCard} testID="new-player-form">
+            <Text style={styles.newPlayerTitle}>Add New Player</Text>
+            <View style={styles.newPlayerRow}>
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="Player name"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerName}
+                onChangeText={setNewPlayerName}
+                testID="new-player-name"
+              />
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="#"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerNumber}
+                onChangeText={setNewPlayerNumber}
+                keyboardType="number-pad"
+                testID="new-player-number"
+              />
+            </View>
+            <View style={styles.newPlayerActions}>
+              <TouchableOpacity
+                style={styles.newPlayerCancel}
+                onPress={resetNewPlayerForm}
+                testID="new-player-cancel"
+              >
+                <Text style={styles.newPlayerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newPlayerSave}
+                onPress={handleAddPlayer}
+                testID="new-player-save"
+              >
+                <Text style={styles.newPlayerSaveText}>Add Player</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.searchBox}>
           <Search size={18} color={Colors.textTertiary} />
@@ -165,8 +234,11 @@ export default function GoalDetailsScreen() {
             <Text style={styles.sectionTitle}>🏃 ASSIST</Text>
             <Text style={styles.optionalLabel}>optional</Text>
           </View>
-          <TouchableOpacity>
-            <Text style={styles.createNew}>Create New</Text>
+          <TouchableOpacity
+            onPress={() => setIsNewPlayerVisible((prev) => !prev)}
+            testID="toggle-new-player-assist"
+          >
+            <Text style={styles.createNew}>{isNewPlayerVisible ? 'Close' : 'Create New'}</Text>
           </TouchableOpacity>
         </View>
 
@@ -340,6 +412,61 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.primary,
+  },
+  newPlayerCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    marginBottom: 16,
+  },
+  newPlayerTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 12,
+  },
+  newPlayerRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  newPlayerInput: {
+    flex: 1,
+    backgroundColor: Colors.gray100,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.dark,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  newPlayerActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  newPlayerCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  newPlayerCancelText: {
+    fontSize: 14,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  newPlayerSave: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+  },
+  newPlayerSaveText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.white,
   },
   searchBox: {
     flexDirection: 'row',
