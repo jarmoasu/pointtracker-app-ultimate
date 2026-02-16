@@ -163,8 +163,10 @@ export default function LiveScoringScreen() {
             fontWeight: '600' as const,
             color: Colors.textSecondary,
             fontSize: 14,
+            // expo-router's Stack.Screen typing sometimes narrows this object;
+            // keep the runtime style while satisfying TS.
             letterSpacing: 1.5,
-          },
+          } as any,
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.dark,
           headerLeft: () => null,
