@@ -39,6 +39,7 @@ export default function GameSetupScreen() {
     updatePlayer,
     removePlayer,
     resetLiveGame,
+    resetRoster,
   } = useGameSetup();
   const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
   const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
@@ -62,6 +63,15 @@ export default function GameSetupScreen() {
     setPlayerNumberInput('');
     setEditingPlayerId(null);
   };
+
+  useEffect(() => {
+    resetRoster();
+    setPlayerNameInput('');
+    setPlayerNumberInput('');
+    setEditingPlayerId(null);
+    setActiveRosterTab('home');
+    console.log('GameSetup cleared roster for new setup');
+  }, [resetRoster]);
 
   const openEditPlayer = (player: Player) => {
     console.log('GameSetup open edit player', { playerId: player.id, activeRosterTab });

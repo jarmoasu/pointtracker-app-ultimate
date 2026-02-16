@@ -256,6 +256,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     console.log('GameSetup reset live game');
   }, []);
 
+  const resetRoster = useCallback(() => {
+    setHomePlayers([]);
+    setAwayPlayers([]);
+    setHomeTeamName('');
+    setAwayTeamName('');
+    console.log('GameSetup reset roster info');
+  }, []);
+
   const endGame = useCallback(() => {
     const now = new Date();
     const date = now.toLocaleDateString();
@@ -308,5 +316,6 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     updateGoalEvent,
     updateTimeoutEvent,
     removeLiveEvent,
+    resetRoster,
   };
 });
