@@ -4,7 +4,7 @@ import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
-import { GameSetupProvider } from "./game-setup-context";
+import { GameSetupProvider } from "./game-setup-context.tsx";
 
 SplashScreen.preventAutoHideAsync();
 
