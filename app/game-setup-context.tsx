@@ -248,6 +248,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayTeam, homeTeam],
   );
 
+  const resetLiveGame = useCallback(() => {
+    setHomeScore(0);
+    setAwayScore(0);
+    setLiveEvents([]);
+    setIsGameEnded(false);
+    console.log('GameSetup reset live game');
+  }, []);
+
   const endGame = useCallback(() => {
     const now = new Date();
     const date = now.toLocaleDateString();
@@ -296,6 +304,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     isGameEnded,
     setIsGameEnded,
     endGame,
+    resetLiveGame,
     updateGoalEvent,
     updateTimeoutEvent,
     removeLiveEvent,

@@ -38,6 +38,7 @@ export default function GameSetupScreen() {
     addPlayer,
     updatePlayer,
     removePlayer,
+    resetLiveGame,
   } = useGameSetup();
   const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
   const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
@@ -124,7 +125,8 @@ export default function GameSetupScreen() {
   };
 
   const handleConfirmContinue = () => {
-    console.log('GameSetup confirm continue');
+    console.log('GameSetup confirm continue - starting new game');
+    resetLiveGame();
     setIsStartConfirmVisible(false);
     router.push('/live-scoring' as Href);
   };
