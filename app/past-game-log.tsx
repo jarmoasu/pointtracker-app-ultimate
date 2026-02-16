@@ -78,7 +78,7 @@ function GoalEventCard({ event }: { event: GameEvent }) {
       </View>
 
       <View style={styles.eventDetails}>
-        <View style={styles.eventPlayerCol}>
+        <View style={styles.eventPlayerRow}>
           <Text style={styles.eventPlayerLabel}>GOAL</Text>
           <View
             style={[
@@ -88,14 +88,15 @@ function GoalEventCard({ event }: { event: GameEvent }) {
           >
             <Text style={styles.eventPlayerNumText}>{event.scorerNumber}</Text>
           </View>
-          <Text style={styles.eventPlayerName}>{event.scorerName}</Text>
+          <Text style={styles.eventPlayerName} numberOfLines={1}>
+            {event.scorerName}
+          </Text>
         </View>
 
-        {event.assistNumber ? (
-          <>
-            <Text style={styles.eventDash}>—</Text>
-            <View style={styles.eventPlayerCol}>
-              <Text style={styles.eventPlayerLabel}>ASSIST</Text>
+        <View style={styles.eventPlayerRow}>
+          <Text style={styles.eventPlayerLabel}>ASSIST</Text>
+          {event.assistNumber ? (
+            <>
               <View
                 style={[
                   styles.eventPlayerNumber,
@@ -104,18 +105,21 @@ function GoalEventCard({ event }: { event: GameEvent }) {
               >
                 <Text style={styles.eventPlayerNumText}>{event.assistNumber}</Text>
               </View>
-              <Text style={styles.eventPlayerName}>{event.assistName}</Text>
-            </View>
-          </>
-        ) : (
-          <>
-            <Text style={styles.eventDash}>—</Text>
-            <View style={styles.eventPlayerCol}>
-              <Text style={styles.eventPlayerLabel}>ASSIST</Text>
+              <Text style={styles.eventPlayerName} numberOfLines={1}>
+                {event.assistName}
+              </Text>
+            </>
+          ) : (
+            <>
+              <View
+                style={styles.eventPlayerNumberPlaceholder}
+                pointerEvents="none"
+                accessible={false}
+              />
               <Text style={styles.callahanText}>CALLAHAN</Text>
-            </View>
-          </>
-        )}
+            </>
+          )}
+        </View>
       </View>
 
       {event.scoreAtEvent && (
@@ -146,14 +150,17 @@ function TimeoutEvent({ event }: { event: GameEvent }) {
 
 function HalftimeEvent({ event }: { event: GameEvent }) {
   return (
-    <View style={styles.halftimeDivider}>
-      <View style={styles.dividerLine} />
-      <View style={styles.halftimeBadge}>
-        <Coffee size={14} color={Colors.textSecondary} />
-        <Text style={styles.halftimeText}>HALF-TIME</Text>
-        <Text style={styles.halftimeTime}>{event.gameTime}</Text>
+    <View style={styles.halftimeCard} testID="past-halftime-event-card">
+      <View style={styles.timeoutLeft}>
+        <Coffee size={18} color={Colors.textTertiary} />
+        <View>
+          <Text style={styles.timeoutTitle}>Half-time</Text>
+          <Text style={styles.timeoutDesc}>Break</Text>
+        </View>
       </View>
-      <View style={styles.dividerLine} />
+      <View style={styles.timeoutRight}>
+        <Text style={styles.eventTime}>{event.gameTime}</Text>
+      </View>
     </View>
   );
 }
@@ -231,8 +238,6 @@ export default function PastGameLogScreen() {
                   return null;
                 })}
 
-                <SectionDivider label="EARLIER" />
-
                 {earlierEvents.map((event) => {
                   if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
                   if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
@@ -265,9 +270,9 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 32,
+    paddingHorizontal: 16,
+    paddingTop: 6,
+    paddingBottom: 24,
   },
   headerButton: {
     paddingHorizontal: 12,
@@ -287,15 +292,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: Colors.white,
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 8,
+    padding: 14,
+    marginBottom: 6,
   },
   scoreCol: {
     alignItems: 'center',
     flex: 1,
   },
   scoreNum: {
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '800' as const,
     color: Colors.dark,
   },
@@ -329,12 +334,12 @@ const styles = StyleSheet.create({
   scoreTimeCol: {
     alignItems: 'center',
     backgroundColor: Colors.gray100,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 10,
   },
   scoreTimeText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700' as const,
     color: Colors.dark,
   },
@@ -348,7 +353,7 @@ const styles = StyleSheet.create({
   sectionDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
+    marginVertical: 10,
     gap: 12,
   },
   dividerLine: {
@@ -365,8 +370,8 @@ const styles = StyleSheet.create({
   eventCard: {
     backgroundColor: Colors.white,
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
     borderLeftWidth: 3,
     borderLeftColor: Colors.primary,
   },
@@ -374,7 +379,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   eventTeamBadge: {
     paddingHorizontal: 10,
@@ -387,48 +392,52 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   eventTime: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
   },
   eventDetails: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  eventPlayerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  eventPlayerCol: {
-    alignItems: 'center',
-    flex: 1,
+    gap: 10,
   },
   eventPlayerLabel: {
     fontSize: 10,
     fontWeight: '600' as const,
     color: Colors.textTertiary,
     letterSpacing: 0.5,
-    marginBottom: 6,
+    marginBottom: 4,
+    width: 56,
+    textAlign: 'right',
   },
   eventPlayerNumber: {
-    width: 52,
-    height: 40,
+    width: 46,
+    height: 34,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 3,
+  },
+  eventPlayerNumberPlaceholder: {
+    width: 46,
+    height: 34,
+    borderRadius: 8,
+    opacity: 0,
   },
   eventPlayerNumText: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '800' as const,
     color: Colors.white,
   },
   eventPlayerName: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  eventDash: {
-    fontSize: 14,
-    color: Colors.textTertiary,
-    marginHorizontal: 4,
+    flex: 1,
   },
   callahanText: {
     fontSize: 11,
@@ -437,10 +446,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   eventScore: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600' as const,
     color: Colors.dark,
-    marginTop: 10,
+    marginTop: 8,
   },
   timeoutCard: {
     flexDirection: 'row',
@@ -448,21 +457,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.gray200,
   },
   timeoutLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   timeoutTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600' as const,
     color: Colors.dark,
   },
   timeoutDesc: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
     marginTop: 2,
   },
@@ -470,43 +481,28 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     gap: 4,
   },
-  halftimeDivider: {
+  halftimeCard: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginVertical: 12,
-    gap: 10,
-  },
-  halftimeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: Colors.gray100,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  halftimeText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.textSecondary,
-    letterSpacing: 0.5,
-  },
-  halftimeTime: {
-    fontSize: 12,
-    fontWeight: '500' as const,
-    color: Colors.textTertiary,
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.gray200,
   },
   gameStartBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: Colors.primaryFaded,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
   },
   gameStartText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700' as const,
     color: Colors.primary,
     letterSpacing: 0.5,

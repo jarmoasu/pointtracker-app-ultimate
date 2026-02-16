@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -25,17 +26,25 @@ function GameHistoryCard({
   game,
   onOpenLog,
   logEvents,
+  onDeleteGame,
 }: {
   game: ReturnType<typeof useGameSetup>['pastGames'][0];
   onOpenLog: (gameId: string) => void;
   logEvents: GameEvent[];
+  onDeleteGame: (gameId: string) => void;
 }) {
 
   return (
     <View style={styles.card} testID="history-game-card">
       <View style={styles.cardHeader}>
         <Text style={styles.finalScoreLabel}>FINAL SCORE</Text>
-        <TouchableOpacity style={styles.deleteBtn} testID="delete-game-button">
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={() => onDeleteGame(game.id)}
+          testID={`delete-game-button-${game.id}`}
+          accessibilityRole="button"
+          accessibilityLabel={`Delete game ${game.homeTeam.abbreviation} vs ${game.awayTeam.abbreviation}`}
+        >
           <Trash2 size={18} color={Colors.danger} />
         </TouchableOpacity>
       </View>
@@ -88,7 +97,7 @@ function GameHistoryCard({
 
 export default function GameHistoryScreen() {
   const router = useRouter();
-  const { pastGames, pastGameEvents } = useGameSetup();
+  const { pastGames, pastGameEvents, removePastGame, clearPastGames } = useGameSetup();
 
   const historyGroups: HistoryGroup[] = pastGames.length
     ? [
@@ -117,6 +126,31 @@ export default function GameHistoryScreen() {
               <House size={20} color={Colors.primary} />
             </TouchableOpacity>
           ),
+          headerRight: () =>
+            pastGames.length ? (
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    'Clear history?',
+                    'This will permanently delete all games from your local history.',
+                    [
+                      {
+                        text: 'Clear all',
+                        style: 'destructive',
+                        onPress: () => clearPastGames(),
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ],
+                  );
+                }}
+                style={styles.clearAllButton}
+                testID="clear-history-button"
+                accessibilityRole="button"
+                accessibilityLabel="Clear game history"
+              >
+                <Text style={styles.clearAllButtonText}>Clear</Text>
+              </TouchableOpacity>
+            ) : null,
         }}
       />
       <ScrollView
@@ -138,6 +172,20 @@ export default function GameHistoryScreen() {
                 logEvents={(pastGameEvents[game.id] ?? mockGameEvents).slice(0, 3)}
                 onOpenLog={(gameId) => {
                   router.push({ pathname: '/past-game-log', params: { gameId } } as Href);
+                }}
+                onDeleteGame={(gameId) => {
+                  const target = pastGames.find((g) => g.id === gameId);
+                  const title = target
+                    ? `Delete ${target.homeTeam.abbreviation} vs ${target.awayTeam.abbreviation}?`
+                    : 'Delete this game?';
+                  Alert.alert(title, 'This will remove the game and its log from your history.', [
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: () => removePastGame(gameId),
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                  ]);
                 }}
               />
             ))}
@@ -317,5 +365,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: Colors.primaryLight,
+  },
+  clearAllButton: {
+    marginRight: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 12,
+    backgroundColor: Colors.dangerLight,
+  },
+  clearAllButtonText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: Colors.danger,
+    letterSpacing: 0.4,
   },
 });

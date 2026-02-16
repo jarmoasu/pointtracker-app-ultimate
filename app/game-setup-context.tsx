@@ -320,6 +320,23 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     return completedGame;
   }, [awayScore, awayTeam, homeScore, homeTeam, liveEvents]);
 
+  const removePastGame = useCallback((gameId: string) => {
+    setPastGames((prev) => prev.filter((game) => game.id !== gameId));
+    setPastGameEvents((prev) => {
+      if (!(gameId in prev)) return prev;
+      const next = { ...prev };
+      delete next[gameId];
+      return next;
+    });
+    console.log('GameSetup remove past game', { gameId });
+  }, []);
+
+  const clearPastGames = useCallback(() => {
+    setPastGames([]);
+    setPastGameEvents({});
+    console.log('GameSetup clear past games');
+  }, []);
+
   return {
     homeTeamName,
     awayTeamName,
@@ -350,5 +367,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     removeLiveEvent,
     resetRoster,
     replaceRosterForSide,
+    removePastGame,
+    clearPastGames,
   };
 });

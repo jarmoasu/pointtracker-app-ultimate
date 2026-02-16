@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ListChecks, Timer, Flag, Coffee, Plus, Archive } from 'lucide-react-native';
+import { ListChecks, Timer, Flag, Coffee, Plus, Archive, Home } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
@@ -103,6 +103,11 @@ export default function LiveScoringScreen() {
     router.push('/game-history' as Href);
   }, [router]);
 
+  const handleHomePress = useCallback(() => {
+    console.log('Navigating to home');
+    router.replace('/' as Href);
+  }, [router]);
+
   const formatClock = useCallback((totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -169,7 +174,22 @@ export default function LiveScoringScreen() {
           } as any,
           headerStyle: { backgroundColor: Colors.background },
           headerTintColor: Colors.dark,
-          headerLeft: () => null,
+          headerLeft: () =>
+            isGameEnded ? (
+              <TouchableOpacity
+                onPress={handleHomePress}
+                activeOpacity={0.8}
+                style={styles.headerHomeButton}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                accessibilityRole="button"
+                accessibilityLabel="Go to Home"
+                testID="go-home-button"
+              >
+                <View style={styles.headerHomeButtonInner}>
+                  <Home size={18} color={Colors.white} />
+                </View>
+              </TouchableOpacity>
+            ) : null,
           headerBackVisible: false,
           headerRight: () => null,
         }}
@@ -546,5 +566,16 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.textSecondary,
     lineHeight: 18,
+  },
+  headerHomeButton: {
+    marginLeft: 14,
+  },
+  headerHomeButtonInner: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
