@@ -123,12 +123,14 @@ export default function GameSetupScreen() {
       return null;
     }
 
-    const header = rows[0].map((value) => value.toLowerCase());
-    const teamIndex = header.findIndex((value) => value.includes('team'));
-    const nameIndex = header.findIndex((value) => value.includes('player') || value === 'name');
-    const numberIndex = header.findIndex((value) => value.includes('jersey') || value.includes('number'));
+    const header = rows[0].map((value) => value.toLowerCase().trim());
+    const teamIndex = header.findIndex((value) => value === 'team name' || value === 'team' || value.includes('team name'));
+    const playerNameIndex = header.findIndex((value) => value === 'player name' || value === 'player' || value === 'name');
+    const firstNameIndex = header.findIndex((value) => value === 'first name' || value === 'firstname' || value === 'first');
+    const lastNameIndex = header.findIndex((value) => value === 'last name' || value === 'lastname' || value === 'last');
+    const numberIndex = header.findIndex((value) => value === 'jersey number' || value === 'jersey' || value === 'number' || value.includes('jersey'));
 
-    if (teamIndex < 0 || nameIndex < 0) {
+    if (teamIndex < 0 || (playerNameIndex < 0 && firstNameIndex < 0 && lastNameIndex < 0)) {
       return null;
     }
 
@@ -136,10 +138,14 @@ export default function GameSetupScreen() {
 
     rows.slice(1).forEach((row) => {
       const teamName = row[teamIndex]?.trim();
-      const playerName = row[nameIndex]?.trim();
+      const playerName = playerNameIndex >= 0 ? row[playerNameIndex]?.trim() : '';
+      const firstName = firstNameIndex >= 0 ? row[firstNameIndex]?.trim() : '';
+      const lastName = lastNameIndex >= 0 ? row[lastNameIndex]?.trim() : '';
       const numberValue = numberIndex >= 0 ? row[numberIndex]?.trim() : '';
+      const combinedName = [firstName, lastName].filter(Boolean).join(' ').trim();
+      const finalName = playerName || combinedName;
 
-      if (!teamName || (!playerName && !numberValue)) {
+      if (!teamName || (!finalName && !numberValue)) {
         return;
       }
 
@@ -148,7 +154,7 @@ export default function GameSetupScreen() {
       }
 
       teams[teamName].push({
-        name: playerName || '',
+        name: finalName || '',
         number: numberValue || '',
       });
     });
@@ -176,7 +182,7 @@ export default function GameSetupScreen() {
 
   const handleImportRoster = () => {
     if (!parsedRoster) {
-      setCsvParseError('Paste a valid CSV with Team Name and Player Name columns.');
+      setCsvParseError('Paste a valid CSV with Team Name and Player Name (or First/Last Name) columns.');
       return;
     }
 
@@ -515,11 +521,11 @@ export default function GameSetupScreen() {
           <View style={styles.importCard}>
             <Text style={styles.confirmTitle}>Import Roster CSV</Text>
             <Text style={styles.confirmMessage}>
-              Paste your roster CSV below. Column A must be "Team Name" and each row should include player name and optional jersey number.
+              Paste your roster CSV below. Column A must be "Team Name" and each row should include player name (or first/last name) and optional jersey number.
             </Text>
             <TextInput
               style={styles.csvInput}
-              placeholder="Team Name,Player Name,Jersey Number"
+              placeholder="Team Name,Player Name,First Name,Last Name,Jersey Number"
               placeholderTextColor={Colors.textTertiary}
               value={csvInput}
               onChangeText={(text) => {
