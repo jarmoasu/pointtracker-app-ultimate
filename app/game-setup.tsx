@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Modal,
+  ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -24,6 +27,101 @@ import Colors from '@/constants/colors';
 import { Player } from '@/types/game';
 import { useGameSetup, TeamSide } from '@/app/game-setup-context';
 
+type CsvRosterRow = { teamName: string; playerName: string; jerseyNumber: string };
+
+function parseCsvLine(line: string): string[] {
+  // Basic CSV parsing with support for quotes and escaped quotes ("")
+  const out: string[] = [];
+  let cur = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+
+    if (inQuotes) {
+      if (ch === '"') {
+        const next = line[i + 1];
+        if (next === '"') {
+          cur += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cur += ch;
+      }
+      continue;
+    }
+
+    if (ch === '"') {
+      inQuotes = true;
+      continue;
+    }
+
+    if (ch === ',') {
+      out.push(cur);
+      cur = '';
+      continue;
+    }
+
+    cur += ch;
+  }
+
+  out.push(cur);
+  return out;
+}
+
+function normalizeHeaderKey(header: string) {
+  return header.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function parseRosterCsv(text: string): {
+  teams: string[];
+  rosterByTeam: Record<string, Array<{ name: string; number: string }>>;
+  rowCount: number;
+} {
+  const cleaned = text.replace(/\uFEFF/g, '').trim();
+  const lines = cleaned.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) {
+    return { teams: [], rosterByTeam: {}, rowCount: 0 };
+  }
+
+  const header = parseCsvLine(lines[0]).map((h) => normalizeHeaderKey(h));
+  const teamIdx = header.findIndex((h) => h === 'team name');
+  const playerIdx = header.findIndex((h) => h === 'player name');
+  const jerseyIdx = header.findIndex((h) => h === 'jersey number');
+
+  if (teamIdx === -1 || playerIdx === -1 || jerseyIdx === -1) {
+    throw new Error(
+      `CSV must include headers: "Team Name", "Player Name", "Jersey Number". Found: ${header
+        .map((h) => `"${h}"`)
+        .join(', ')}`,
+    );
+  }
+
+  const rosterByTeam: Record<string, Array<{ name: string; number: string }>> = {};
+  let rowCount = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCsvLine(lines[i]);
+    const row: CsvRosterRow = {
+      teamName: (cols[teamIdx] ?? '').trim(),
+      playerName: (cols[playerIdx] ?? '').trim(),
+      jerseyNumber: (cols[jerseyIdx] ?? '').trim(),
+    };
+
+    if (!row.teamName) continue;
+    if (!row.playerName && !row.jerseyNumber) continue;
+
+    if (!rosterByTeam[row.teamName]) rosterByTeam[row.teamName] = [];
+    rosterByTeam[row.teamName].push({ name: row.playerName, number: row.jerseyNumber });
+    rowCount++;
+  }
+
+  const teams = Object.keys(rosterByTeam).sort((a, b) => a.localeCompare(b));
+  return { teams, rosterByTeam, rowCount };
+}
+
 export default function GameSetupScreen() {
   const router = useRouter();
   const [streamId, setStreamId] = useState<string>('');
@@ -40,12 +138,23 @@ export default function GameSetupScreen() {
     removePlayer,
     resetLiveGame,
     resetRoster,
+    replaceRosterForSide,
   } = useGameSetup();
   const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
   const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [playerNumberInput, setPlayerNumberInput] = useState<string>('');
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+
+  const [isCsvImportVisible, setIsCsvImportVisible] = useState<boolean>(false);
+  const [csvUrlInput, setCsvUrlInput] = useState<string>(
+    'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv',
+  );
+  const [isCsvLoading, setIsCsvLoading] = useState<boolean>(false);
+  const [csvTeams, setCsvTeams] = useState<string[]>([]);
+  const [csvRosterByTeam, setCsvRosterByTeam] = useState<
+    Record<string, Array<{ name: string; number: string }>>
+  >({});
 
   useEffect(() => {
     console.log('GameSetup initial teams', {
@@ -144,6 +253,71 @@ export default function GameSetupScreen() {
   const handleConfirmBack = () => {
     console.log('GameSetup confirm back to setup');
     setIsStartConfirmVisible(false);
+  };
+
+  const closeCsvImport = () => {
+    setIsCsvImportVisible(false);
+    setIsCsvLoading(false);
+    setCsvTeams([]);
+    setCsvRosterByTeam({});
+  };
+
+  const handleFetchCsv = async () => {
+    const url = csvUrlInput.trim();
+    if (!url) {
+      Alert.alert('Missing URL', 'Paste a CSV URL to import.');
+      return;
+    }
+
+    try {
+      setIsCsvLoading(true);
+      setCsvTeams([]);
+      setCsvRosterByTeam({});
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const csvText = await res.text();
+      const { teams, rosterByTeam, rowCount } = parseRosterCsv(csvText);
+
+      if (teams.length === 0) {
+        Alert.alert('No teams found', 'No importable rows were found in that CSV.');
+        return;
+      }
+
+      console.log('GameSetup CSV parsed', { teamCount: teams.length, rowCount });
+      setCsvTeams(teams);
+      setCsvRosterByTeam(rosterByTeam);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Import failed', message);
+    } finally {
+      setIsCsvLoading(false);
+    }
+  };
+
+  const confirmImportTeam = (teamName: string) => {
+    const roster = csvRosterByTeam[teamName] ?? [];
+    const side = activeRosterTab;
+
+    Alert.alert(
+      'Import roster?',
+      `Import "${teamName}" into ${side.toUpperCase()} and replace the current roster?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'default',
+          onPress: () => {
+            replaceRosterForSide(side, { teamName, players: roster });
+            resetPlayerForm();
+            closeCsvImport();
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -343,7 +517,7 @@ export default function GameSetupScreen() {
         <TouchableOpacity
           style={styles.importBtn}
           testID="import-roster-button"
-          onPress={() => Alert.alert('Coming soon', 'CSV import will be available soon.')}
+          onPress={() => setIsCsvImportVisible(true)}
         >
           <Upload size={18} color={Colors.textSecondary} />
           <Text style={styles.importText}>IMPORT ROSTER (CSV)</Text>
@@ -390,6 +564,82 @@ export default function GameSetupScreen() {
           </View>
         </View>
       )}
+
+      <Modal
+        visible={isCsvImportVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCsvImport}
+      >
+        <Pressable style={styles.confirmOverlay} onPress={closeCsvImport} testID="csv-import-overlay">
+          <Pressable style={styles.csvCard} onPress={() => {}} testID="csv-import-card">
+            <Text style={styles.confirmTitle}>Import CSV</Text>
+            <Text style={styles.confirmMessage}>
+              Paste a CSV URL with columns: Team Name, Player Name, Jersey Number.
+            </Text>
+
+            <Text style={styles.inputLabel}>CSV URL</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="https://..."
+                placeholderTextColor={Colors.textTertiary}
+                value={csvUrlInput}
+                onChangeText={setCsvUrlInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                testID="csv-url-input"
+              />
+            </View>
+
+            <View style={styles.csvActions}>
+              <TouchableOpacity
+                style={styles.confirmBackBtn}
+                onPress={closeCsvImport}
+                testID="csv-import-cancel"
+              >
+                <Text style={styles.confirmBackText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmContinueBtn}
+                onPress={handleFetchCsv}
+                disabled={isCsvLoading}
+                testID="csv-import-fetch"
+              >
+                {isCsvLoading ? (
+                  <ActivityIndicator color={Colors.white} />
+                ) : (
+                  <Text style={styles.confirmContinueText}>Fetch</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {csvTeams.length > 0 ? (
+              <View style={styles.csvTeamSection}>
+                <Text style={styles.csvSectionTitle}>Select a team to import</Text>
+                <ScrollView style={styles.csvTeamList} showsVerticalScrollIndicator={false}>
+                  {csvTeams.map((team) => (
+                    <TouchableOpacity
+                      key={team}
+                      style={styles.csvTeamRow}
+                      onPress={() => confirmImportTeam(team)}
+                      testID={`csv-team-${team.replace(/[^a-z0-9_-]+/gi, '-')}`}
+                    >
+                      <View style={styles.csvTeamMeta}>
+                        <Text style={styles.csvTeamName}>{team}</Text>
+                        <Text style={styles.csvTeamCount}>
+                          {(csvRosterByTeam[team]?.length ?? 0).toString()} players
+                        </Text>
+                      </View>
+                      <Text style={styles.csvImportHint}>Import to {activeRosterTab.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
     </View>
   );
@@ -649,6 +899,65 @@ const styles = StyleSheet.create({
     padding: 22,
     borderWidth: 1,
     borderColor: Colors.gray200,
+  },
+  csvCard: {
+    width: '100%',
+    maxHeight: '85%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  csvActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  csvTeamSection: {
+    marginTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray200,
+    paddingTop: 14,
+  },
+  csvSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 10,
+  },
+  csvTeamList: {
+    maxHeight: 260,
+  },
+  csvTeamRow: {
+    backgroundColor: Colors.gray100,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 10,
+  },
+  csvTeamMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    gap: 10,
+  },
+  csvTeamName: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    flex: 1,
+  },
+  csvTeamCount: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  csvImportHint: {
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
   },
   inlinePlayerCard: {
     backgroundColor: Colors.white,

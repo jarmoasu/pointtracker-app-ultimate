@@ -264,6 +264,38 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     console.log('GameSetup reset roster info');
   }, []);
 
+  const replaceRosterForSide = useCallback(
+    (
+      side: TeamSide,
+      params: {
+        teamName?: string;
+        players: Array<{ name: string; number: string }>;
+      },
+    ) => {
+      const nextPlayers: Player[] = params.players.map((p) => ({
+        id: createId(),
+        name: p.name,
+        number: p.number,
+        teamId: side,
+      }));
+
+      if (side === 'home') {
+        setHomePlayers(nextPlayers);
+        if (typeof params.teamName === 'string') setHomeTeamName(params.teamName);
+      } else {
+        setAwayPlayers(nextPlayers);
+        if (typeof params.teamName === 'string') setAwayTeamName(params.teamName);
+      }
+
+      console.log('GameSetup replace roster', {
+        side,
+        playerCount: nextPlayers.length,
+        teamName: params.teamName,
+      });
+    },
+    [],
+  );
+
   const endGame = useCallback(() => {
     const now = new Date();
     const date = now.toLocaleDateString();
@@ -317,5 +349,6 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     updateTimeoutEvent,
     removeLiveEvent,
     resetRoster,
+    replaceRosterForSide,
   };
 });
