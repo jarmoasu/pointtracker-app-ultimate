@@ -224,12 +224,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       const token = writeToken.trim();
 
       if (!token) {
-        console.log('Score sync skipped (missing write token)', { requestId: `goal-${newEvent.id}` });
-        return newEvent;
-      }
-      if (typeof newEvent.gameClockSeconds !== 'number') {
-        console.log('Score sync skipped (unparseable clock)', {
-          gameTime: newEvent.gameTime,
+        console.log('Result sync skipped (missing write token)', {
           requestId: `goal-${newEvent.id}`,
         });
         return newEvent;
@@ -238,7 +233,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       void (async () => {
         try {
           const requestId = `goal-${newEvent.id}`;
-          const res = await fetch(`${normalizedBaseUrl}/score`, {
+          const res = await fetch(`${normalizedBaseUrl}/update_result`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -247,11 +242,13 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
               ...(deviceName.trim() ? { 'X-Device-Name': deviceName.trim() } : null),
             } as any,
             body: JSON.stringify({
-              team: params.side,
-              gameClockSeconds: newEvent.gameClockSeconds,
-              scorer: params.scorer.number,
-              assist: params.assist?.number,
-              requestId,
+              homeTeamName: homeTeam.name,
+              awayTeamName: awayTeam.name,
+              HomeScore: String(nextHome),
+              awayScore: String(nextAway),
+              lastScore: team.name,
+              lastScorer: params.scorer.name,
+              lastAssist: params.assist?.name ?? '',
             }),
           });
 
@@ -270,10 +267,10 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
           setLiveEvents((prev) =>
             prev.map((ev) => (ev.id === newEvent.id ? { ...ev, isSynced: true } : ev)),
           );
-          console.log('Score synced', { requestId });
+          console.log('Result synced', { requestId });
         } catch (e) {
           const message = e instanceof Error ? e.message : 'Unknown error';
-          console.log('Score sync failed', { eventId: newEvent.id, message });
+          console.log('Result sync failed', { eventId: newEvent.id, message });
         }
       })();
 
