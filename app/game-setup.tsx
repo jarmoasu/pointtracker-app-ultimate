@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Pressable,
+  Platform,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -35,6 +36,8 @@ const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
 const CSV_URL_HISTORY_KEY = 'pointtracker.csvUrlHistory.v1';
 const CSV_TEST_AND_EXAMPLE_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv';
+
+const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
 function parseCsvLine(line: string): string[] {
   // Basic CSV parsing with support for quotes and escaped quotes ("")
@@ -131,13 +134,19 @@ function parseRosterCsv(text: string): {
 
 export default function GameSetupScreen() {
   const router = useRouter();
-  const [streamId, setStreamId] = useState<string>('');
   const [claimCode, setClaimCode] = useState<string>('');
+  const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const {
+    backendBaseUrl,
+    writeToken,
+    deviceName,
     homeTeamName,
     awayTeamName,
     homePlayers,
     awayPlayers,
+    setBackendBaseUrl,
+    setWriteToken,
+    setDeviceName,
     setHomeTeamName,
     setAwayTeamName,
     addPlayer,
@@ -378,6 +387,68 @@ export default function GameSetupScreen() {
     );
   };
 
+  const handleClaimStream = async () => {
+    const trimmedClaimCode = claimCode.trim();
+    if (!trimmedClaimCode) {
+      Alert.alert('Missing claim code', 'Please enter a claim code.');
+      return;
+    }
+
+    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+      /\/+$/,
+      '',
+    );
+    const trimmedDeviceName = deviceName.trim();
+    if (!trimmedDeviceName) {
+      Alert.alert('Missing device name', 'Please enter a device name.');
+      return;
+    }
+
+    try {
+      setIsClaiming(true);
+
+      const res = await fetch(`${normalizedBaseUrl}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          claimCode: trimmedClaimCode,
+          deviceName: trimmedDeviceName,
+        }),
+      });
+
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+
+      if (!res.ok) {
+        const message =
+          typeof payload?.message === 'string'
+            ? payload.message
+            : typeof payload?.error === 'string'
+              ? payload.error
+              : `Request failed (${res.status})`;
+        throw new Error(message);
+      }
+
+      const nextWriteToken = typeof payload?.writeToken === 'string' ? payload.writeToken.trim() : '';
+      if (!nextWriteToken) {
+        throw new Error('No writeToken returned from server.');
+      }
+
+      setWriteToken(nextWriteToken);
+      setClaimCode('');
+      Alert.alert('Stream claimed', 'Write token saved on this device.');
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Claim failed', message);
+    } finally {
+      setIsClaiming(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Stack.Screen
@@ -545,16 +616,34 @@ export default function GameSetupScreen() {
 
         <Text style={styles.sectionTitle}>Stream Connection</Text>
         <View style={styles.streamCard}>
-          <Text style={styles.inputLabel}>STREAM ID</Text>
+          <Text style={styles.inputLabel}>SERVICE URL</Text>
           <View style={styles.inputRow}>
             <Wifi size={18} color={Colors.textTertiary} />
             <TextInput
               style={styles.input}
-              placeholder="e.g. finals_field_1"
+              placeholder={DEFAULT_BACKEND_BASE_URL}
               placeholderTextColor={Colors.textTertiary}
-              value={streamId}
-              onChangeText={setStreamId}
-              testID="stream-id-input"
+              value={backendBaseUrl}
+              onChangeText={setBackendBaseUrl}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              testID="backend-url-input"
+            />
+          </View>
+
+          <Text style={styles.inputLabel}>DEVICE NAME</Text>
+          <View style={styles.inputRow}>
+            <Wifi size={18} color={Colors.textTertiary} />
+            <TextInput
+              style={styles.input}
+              placeholder={`scorekeeper-${Platform.OS}`}
+              placeholderTextColor={Colors.textTertiary}
+              value={deviceName}
+              onChangeText={setDeviceName}
+              autoCapitalize="none"
+              autoCorrect={false}
+              testID="device-name-input"
             />
           </View>
 
@@ -573,12 +662,24 @@ export default function GameSetupScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.claimStreamButton}
+            style={[styles.claimStreamButton, isClaiming ? styles.claimStreamButtonDisabled : null]}
             activeOpacity={0.85}
+            onPress={handleClaimStream}
+            disabled={isClaiming}
             testID="claim-stream-info-button"
           >
-            <Text style={styles.claimStreamText}>CLAIM STREAM</Text>
+            {isClaiming ? (
+              <ActivityIndicator color={Colors.white} />
+            ) : (
+              <Text style={styles.claimStreamText}>CLAIM STREAM</Text>
+            )}
           </TouchableOpacity>
+
+          {writeToken ? (
+            <Text style={styles.writeTokenHint} testID="write-token-saved-hint">
+              Write token saved on this device.
+            </Text>
+          ) : null}
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -795,11 +896,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
   },
+  claimStreamButtonDisabled: {
+    opacity: 0.7,
+  },
   claimStreamText: {
     fontSize: 12,
     fontWeight: '700' as const,
     color: Colors.white,
     letterSpacing: 0.8,
+  },
+  writeTokenHint: {
+    marginTop: 10,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
   },
   matchupRow: {
     flexDirection: 'row',

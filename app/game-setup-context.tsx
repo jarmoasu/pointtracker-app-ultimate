@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { Game, GameEvent, Player, Team } from '@/types/game';
 
@@ -7,7 +8,16 @@ export type TeamSide = 'home' | 'away';
 
 const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+const BACKEND_BASE_URL_KEY = 'pointtracker.backendBaseUrl.v1';
+const WRITE_TOKEN_KEY = 'pointtracker.writeToken.v1';
+const DEVICE_NAME_KEY = 'pointtracker.deviceName.v1';
+const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+
 export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
+  const [backendBaseUrl, setBackendBaseUrlState] = useState<string>(DEFAULT_BACKEND_BASE_URL);
+  const [writeToken, setWriteTokenState] = useState<string>('');
+  const [deviceName, setDeviceNameState] = useState<string>('');
+
   const [homeTeamName, setHomeTeamName] = useState<string>('');
   const [awayTeamName, setAwayTeamName] = useState<string>('');
   const [homePlayers, setHomePlayers] = useState<Player[]>([]);
@@ -22,6 +32,67 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     () => liveEvents.some((event) => event.type === 'halftime'),
     [liveEvents],
   );
+
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const [storedBaseUrl, storedWriteToken, storedDeviceName] = await Promise.all([
+          AsyncStorage.getItem(BACKEND_BASE_URL_KEY),
+          AsyncStorage.getItem(WRITE_TOKEN_KEY),
+          AsyncStorage.getItem(DEVICE_NAME_KEY),
+        ]);
+
+        if (!isMounted) return;
+
+        if (typeof storedBaseUrl === 'string' && storedBaseUrl.trim()) {
+          setBackendBaseUrlState(storedBaseUrl.trim());
+        }
+        if (typeof storedWriteToken === 'string' && storedWriteToken.trim()) {
+          setWriteTokenState(storedWriteToken.trim());
+        }
+        if (typeof storedDeviceName === 'string' && storedDeviceName.trim()) {
+          setDeviceNameState(storedDeviceName.trim());
+        }
+      } catch {
+        // ignore persisted config hydration failures
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const setBackendBaseUrl = useCallback((nextUrl: string) => {
+    const trimmed = nextUrl.trim();
+    setBackendBaseUrlState(trimmed);
+    if (!trimmed) {
+      void AsyncStorage.removeItem(BACKEND_BASE_URL_KEY);
+      return;
+    }
+    void AsyncStorage.setItem(BACKEND_BASE_URL_KEY, trimmed);
+  }, []);
+
+  const setWriteToken = useCallback((nextToken: string) => {
+    const trimmed = nextToken.trim();
+    setWriteTokenState(trimmed);
+    if (!trimmed) {
+      void AsyncStorage.removeItem(WRITE_TOKEN_KEY);
+      return;
+    }
+    void AsyncStorage.setItem(WRITE_TOKEN_KEY, trimmed);
+  }, []);
+
+  const setDeviceName = useCallback((nextDeviceName: string) => {
+    const trimmed = nextDeviceName.trim();
+    setDeviceNameState(trimmed);
+    if (!trimmed) {
+      void AsyncStorage.removeItem(DEVICE_NAME_KEY);
+      return;
+    }
+    void AsyncStorage.setItem(DEVICE_NAME_KEY, trimmed);
+  }, []);
 
   const addPlayer = useCallback(
     (side: TeamSide, name: string, number: string) => {
@@ -339,6 +410,9 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   }, []);
 
   return {
+    backendBaseUrl,
+    writeToken,
+    deviceName,
     homeTeamName,
     awayTeamName,
     homePlayers,
@@ -350,6 +424,9 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     liveEvents,
     pastGames,
     pastGameEvents,
+    setBackendBaseUrl,
+    setWriteToken,
+    setDeviceName,
     setHomeTeamName,
     setAwayTeamName,
     addPlayer,
