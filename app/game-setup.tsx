@@ -22,12 +22,19 @@ import {
   Pencil,
   X,
 } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import Colors from '@/constants/colors';
 import { Player } from '@/types/game';
 import { useGameSetup, TeamSide } from '@/app/game-setup-context';
 
 type CsvRosterRow = { teamName: string; playerName: string; jerseyNumber: string };
+
+const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
+// Back-compat: earlier builds stored an array of recent URLs under this key.
+const CSV_URL_HISTORY_KEY = 'pointtracker.csvUrlHistory.v1';
+const CSV_TEST_AND_EXAMPLE_URL =
+  'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv';
 
 function parseCsvLine(line: string): string[] {
   // Basic CSV parsing with support for quotes and escaped quotes ("")
@@ -147,9 +154,8 @@ export default function GameSetupScreen() {
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
 
   const [isCsvImportVisible, setIsCsvImportVisible] = useState<boolean>(false);
-  const [csvUrlInput, setCsvUrlInput] = useState<string>(
-    'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv',
-  );
+  const [csvUrlInput, setCsvUrlInput] = useState<string>('');
+  const [csvLastSuccessfulUrl, setCsvLastSuccessfulUrl] = useState<string>('');
   const [isCsvLoading, setIsCsvLoading] = useState<boolean>(false);
   const [csvTeams, setCsvTeams] = useState<string[]>([]);
   const [csvRosterByTeam, setCsvRosterByTeam] = useState<
@@ -165,12 +171,63 @@ export default function GameSetupScreen() {
     });
   }, [homeTeamName, awayTeamName, homePlayers.length, awayPlayers.length]);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    (async () => {
+      try {
+        const rawLast = await AsyncStorage.getItem(CSV_LAST_SUCCESSFUL_URL_KEY);
+        if (rawLast) {
+          const trimmed = rawLast.trim();
+          if (trimmed && trimmed !== CSV_TEST_AND_EXAMPLE_URL) {
+            if (isMounted) setCsvLastSuccessfulUrl(trimmed);
+            return;
+          }
+
+          // Don't allow the test URL to become the "last successful" option.
+          if (trimmed === CSV_TEST_AND_EXAMPLE_URL) {
+            await AsyncStorage.removeItem(CSV_LAST_SUCCESSFUL_URL_KEY);
+          }
+        }
+
+        // Back-compat: if an older "recent URLs" list exists, migrate the first item.
+        const rawHistory = await AsyncStorage.getItem(CSV_URL_HISTORY_KEY);
+        if (!rawHistory) return;
+
+        const parsed = JSON.parse(rawHistory);
+        if (!Array.isArray(parsed)) return;
+        const first = parsed.find((v) => typeof v === 'string' && v.trim().length > 0);
+        if (!first) return;
+
+        const migrated = (first as string).trim();
+        if (!migrated || migrated === CSV_TEST_AND_EXAMPLE_URL) return;
+        await AsyncStorage.setItem(CSV_LAST_SUCCESSFUL_URL_KEY, migrated);
+        if (isMounted) setCsvLastSuccessfulUrl(migrated);
+      } catch {
+        // ignore history load failures
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const currentPlayers = activeRosterTab === 'home' ? homePlayers : awayPlayers;
 
   const resetPlayerForm = () => {
     setPlayerNameInput('');
     setPlayerNumberInput('');
     setEditingPlayerId(null);
+  };
+
+  const rememberSuccessfulCsvUrl = (url: string) => {
+    const trimmed = url.trim();
+    if (!trimmed) return;
+    if (trimmed === CSV_TEST_AND_EXAMPLE_URL) return;
+
+    setCsvLastSuccessfulUrl(trimmed);
+    void AsyncStorage.setItem(CSV_LAST_SUCCESSFUL_URL_KEY, trimmed);
   };
 
   useEffect(() => {
@@ -287,6 +344,7 @@ export default function GameSetupScreen() {
         return;
       }
 
+      rememberSuccessfulCsvUrl(url);
       console.log('GameSetup CSV parsed', { teamCount: teams.length, rowCount });
       setCsvTeams(teams);
       setCsvRosterByTeam(rosterByTeam);
@@ -334,44 +392,6 @@ export default function GameSetupScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Stream Connection</Text>
-        <View style={styles.streamCard}>
-          <Text style={styles.inputLabel}>STREAM ID</Text>
-          <View style={styles.inputRow}>
-            <Wifi size={18} color={Colors.textTertiary} />
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. finals_field_1"
-              placeholderTextColor={Colors.textTertiary}
-              value={streamId}
-              onChangeText={setStreamId}
-              testID="stream-id-input"
-            />
-          </View>
-
-          <Text style={styles.inputLabel}>CLAIM CODE</Text>
-          <View style={styles.inputRow}>
-            <KeyRound size={18} color={Colors.textTertiary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter claim code"
-              placeholderTextColor={Colors.textTertiary}
-              secureTextEntry
-              value={claimCode}
-              onChangeText={setClaimCode}
-              testID="claim-code-input"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={styles.claimStreamButton}
-            activeOpacity={0.85}
-            testID="claim-stream-info-button"
-          >
-            <Text style={styles.claimStreamText}>CLAIM STREAM INFO</Text>
-          </TouchableOpacity>
-        </View>
-
         <Text style={styles.sectionTitle}>Matchup</Text>
         <View style={styles.matchupRow}>
           <View style={styles.matchupTeam}>
@@ -523,6 +543,44 @@ export default function GameSetupScreen() {
           <Text style={styles.importText}>IMPORT ROSTER (CSV)</Text>
         </TouchableOpacity>
 
+        <Text style={styles.sectionTitle}>Stream Connection</Text>
+        <View style={styles.streamCard}>
+          <Text style={styles.inputLabel}>STREAM ID</Text>
+          <View style={styles.inputRow}>
+            <Wifi size={18} color={Colors.textTertiary} />
+            <TextInput
+              style={styles.input}
+              placeholder="e.g. finals_field_1"
+              placeholderTextColor={Colors.textTertiary}
+              value={streamId}
+              onChangeText={setStreamId}
+              testID="stream-id-input"
+            />
+          </View>
+
+          <Text style={styles.inputLabel}>CLAIM CODE</Text>
+          <View style={styles.inputRow}>
+            <KeyRound size={18} color={Colors.textTertiary} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter claim code"
+              placeholderTextColor={Colors.textTertiary}
+              secureTextEntry
+              value={claimCode}
+              onChangeText={setClaimCode}
+              testID="claim-code-input"
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.claimStreamButton}
+            activeOpacity={0.85}
+            testID="claim-stream-info-button"
+          >
+            <Text style={styles.claimStreamText}>CLAIM STREAM</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
@@ -590,6 +648,43 @@ export default function GameSetupScreen() {
                 autoCorrect={false}
                 testID="csv-url-input"
               />
+            </View>
+
+            <View style={styles.csvRecentSection}>
+              <Text style={styles.csvRecentLabel}>Quick options</Text>
+              <View style={styles.csvRecentChips}>
+                {csvLastSuccessfulUrl ? (
+                  <TouchableOpacity
+                    key={csvLastSuccessfulUrl}
+                    style={styles.csvRecentChip}
+                    activeOpacity={0.85}
+                    onPress={() => setCsvUrlInput(csvLastSuccessfulUrl)}
+                    testID="csv-last-successful-url"
+                  >
+                    <Text style={styles.csvRecentChipText} numberOfLines={1}>
+                      {csvLastSuccessfulUrl}
+                    </Text>
+                    <Text style={styles.csvRecentChipNote} numberOfLines={1}>
+                      Last successful URL
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+
+                <TouchableOpacity
+                  key={CSV_TEST_AND_EXAMPLE_URL}
+                  style={styles.csvRecentChip}
+                  activeOpacity={0.85}
+                  onPress={() => setCsvUrlInput(CSV_TEST_AND_EXAMPLE_URL)}
+                  testID="csv-test-example-url"
+                >
+                  <Text style={styles.csvRecentChipText} numberOfLines={1}>
+                    {CSV_TEST_AND_EXAMPLE_URL}
+                  </Text>
+                  <Text style={styles.csvRecentChipNote} numberOfLines={1}>
+                    Test and example URL
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.csvActions}>
@@ -871,7 +966,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    backgroundColor: Colors.dark,
+    backgroundColor: Colors.success,
     borderRadius: 16,
     paddingVertical: 18,
   },
@@ -912,6 +1007,43 @@ const styles = StyleSheet.create({
   csvActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  csvRecentSection: {
+    marginTop: 10,
+    marginBottom: 2,
+  },
+  csvRecentLabel: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    marginBottom: 8,
+  },
+  csvRecentChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  csvRecentChip: {
+    maxWidth: '100%',
+    backgroundColor: Colors.gray100,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: 999,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  csvRecentChipText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.dark,
+    maxWidth: 260,
+  },
+  csvRecentChipNote: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    maxWidth: 260,
   },
   csvTeamSection: {
     marginTop: 14,

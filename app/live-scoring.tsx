@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ListChecks, Timer, Flag, Coffee, Plus, Archive, Home } from 'lucide-react-native';
+import { ListChecks, Timer, Flag, Coffee, Plus, Archive, House } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
@@ -30,7 +30,7 @@ export default function LiveScoringScreen() {
     isGameEnded,
     endGame,
   } = useGameSetup();
-  const [period] = useState<number>(1);
+  const period = hasHalftimeEvent ? 2 : 1;
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
   const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -178,16 +178,10 @@ export default function LiveScoringScreen() {
             isGameEnded ? (
               <TouchableOpacity
                 onPress={handleHomePress}
-                activeOpacity={0.8}
-                style={styles.headerHomeButton}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Go to Home"
+                style={styles.homeButton}
                 testID="go-home-button"
               >
-                <View style={styles.headerHomeButtonInner}>
-                  <Home size={18} color={Colors.white} />
-                </View>
+                <House size={20} color={Colors.primary} />
               </TouchableOpacity>
             ) : null,
           headerBackVisible: false,
@@ -217,22 +211,12 @@ export default function LiveScoringScreen() {
               <Text style={styles.scoreLabel}>HOME</Text>
               <Text style={styles.scoreTeam}>{homeTeam.name}</Text>
               <Text style={styles.scoreNumber}>{homeScore}</Text>
-              <View style={styles.scoreDots}>
-                <View style={[styles.scoreDot, styles.scoreDotActive]} />
-                <View style={[styles.scoreDot, styles.scoreDotActive]} />
-                <View style={styles.scoreDot} />
-              </View>
             </View>
             <Text style={styles.scoreDivider}>VS</Text>
             <View style={styles.scoreSide}>
               <Text style={styles.scoreLabel}>VISITOR</Text>
               <Text style={styles.scoreTeam}>{awayTeam.name}</Text>
               <Text style={styles.scoreNumber}>{awayScore}</Text>
-              <View style={styles.scoreDots}>
-                <View style={styles.scoreDot} />
-                <View style={[styles.scoreDot, styles.scoreDotActive]} />
-                <View style={[styles.scoreDot, styles.scoreDotActive]} />
-              </View>
             </View>
           </View>
         </View>
@@ -353,9 +337,9 @@ const styles = StyleSheet.create({
   timerCard: {
     backgroundColor: Colors.white,
     borderRadius: 20,
-    padding: 24,
+    padding: 18,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: Colors.dark,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -363,7 +347,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   timerText: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: '800' as const,
     color: Colors.dark,
     letterSpacing: -2,
@@ -374,7 +358,7 @@ const styles = StyleSheet.create({
     color: Colors.primary,
     letterSpacing: 1.5,
     marginTop: 4,
-    marginBottom: 20,
+    marginBottom: 12,
   },
   scoreBoard: {
     flexDirection: 'row',
@@ -385,7 +369,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.gray100,
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 12,
     alignItems: 'center',
   },
   scoreLabel: {
@@ -399,26 +383,14 @@ const styles = StyleSheet.create({
     fontWeight: '800' as const,
     color: Colors.dark,
     marginTop: 4,
+    width: '100%',
+    textAlign: 'center',
   },
   scoreNumber: {
-    fontSize: 42,
+    fontSize: 38,
     fontWeight: '800' as const,
     color: Colors.dark,
     letterSpacing: -2,
-  },
-  scoreDots: {
-    flexDirection: 'row',
-    gap: 6,
-    marginTop: 4,
-  },
-  scoreDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.gray300,
-  },
-  scoreDotActive: {
-    backgroundColor: Colors.primary,
   },
   scoreDivider: {
     fontSize: 14,
@@ -432,7 +404,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.primary,
     borderRadius: 20,
-    padding: 28,
+    padding: 22,
     marginBottom: 12,
   },
   scoreBtnLabel: {
@@ -448,15 +420,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scoreBtnAction: {
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 4,
   },
   scoreBtnPlus: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -467,8 +439,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.darkSecondary,
     borderRadius: 20,
-    padding: 28,
-    marginBottom: 16,
+    padding: 22,
+    marginBottom: 12,
   },
   scoreBtnLabelDark: {
     fontSize: 12,
@@ -483,15 +455,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   scoreBtnActionDark: {
-    fontSize: 34,
+    fontSize: 30,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 4,
   },
   scoreBtnPlusDark: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -503,8 +475,8 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: Colors.dark,
     borderRadius: 16,
-    paddingVertical: 18,
-    marginBottom: 20,
+    paddingVertical: 14,
+    marginBottom: 14,
   },
   viewLogText: {
     fontSize: 15,
@@ -567,15 +539,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     lineHeight: 18,
   },
-  headerHomeButton: {
-    marginLeft: 14,
-  },
-  headerHomeButtonInner: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: Colors.primary,
+  homeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: Colors.primaryLight,
+    padding: 0,
   },
 });

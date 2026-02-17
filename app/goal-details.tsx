@@ -31,11 +31,26 @@ export default function GoalDetailsScreen() {
   const [newPlayerTarget, setNewPlayerTarget] = useState<'scorer' | 'assist' | null>(null);
   const [newPlayerName, setNewPlayerName] = useState<string>('');
   const [newPlayerNumber, setNewPlayerNumber] = useState<string>('');
+  const [editMinutes, setEditMinutes] = useState<string>('');
+  const [editSeconds, setEditSeconds] = useState<string>('');
 
   const editingEvent = useMemo(() => {
     if (!eventId) return null;
     return liveEvents.find((event) => event.id === eventId) ?? null;
   }, [eventId, liveEvents]);
+
+  const getTimeParts = useCallback((raw?: string | null) => {
+    const trimmed = (raw ?? '').trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (match) {
+      return { mm: match[1].padStart(2, '0'), ss: match[2] };
+    }
+
+    const digits = trimmed.replace(/\D/g, '');
+    if (digits.length === 4) return { mm: digits.slice(0, 2), ss: digits.slice(2) };
+    if (digits.length === 3) return { mm: digits.slice(0, 1).padStart(2, '0'), ss: digits.slice(1) };
+    return { mm: '', ss: '' };
+  }, []);
 
   const scoringSide = editingEvent?.teamId === 'away' || editingEvent?.teamId === 'home'
     ? editingEvent.teamId
@@ -153,21 +168,40 @@ export default function GoalDetailsScreen() {
         ? players.find((player) => player.id === selectedAssist) ?? null
         : null;
 
-    const gameTime = time ?? editingEvent?.gameTime ?? '--:--';
+    const baseGameTime = time ?? editingEvent?.gameTime ?? '--:--';
+
+    const buildEditedTime = () => {
+      const mm = editMinutes.trim();
+      const ss = editSeconds.trim();
+      if (!mm || !ss) return null;
+      const minutes = Number(mm);
+      const seconds = Number(ss);
+      if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return null;
+      if (minutes < 0 || minutes > 99) return null;
+      if (seconds < 0 || seconds > 59) return null;
+      return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    };
 
     if (editingEvent) {
-      updateGoalEvent(editingEvent.id, { scorer, assist });
+      const editedTime = buildEditedTime();
+      if (!editedTime) {
+        Alert.alert('Invalid time', 'Please enter a valid time in MM:SS format.');
+        return;
+      }
+      updateGoalEvent(editingEvent.id, { scorer, assist, gameTime: editedTime });
       console.log('GoalDetails: updated goal event', { editingEvent, scorer, assist });
       router.back();
       return;
     }
 
-    addGoalEvent({ side: scoringSide, scorer, assist, gameTime });
-    console.log('GoalDetails: saved goal event', { scorer, assist, gameTime, scoringSide });
+    addGoalEvent({ side: scoringSide, scorer, assist, gameTime: baseGameTime });
+    console.log('GoalDetails: saved goal event', { scorer, assist, gameTime: baseGameTime, scoringSide });
     router.back();
   }, [
     addGoalEvent,
     editingEvent,
+    editMinutes,
+    editSeconds,
     players,
     router,
     scoringSide,
@@ -184,6 +218,10 @@ export default function GoalDetailsScreen() {
       router.back();
       return;
     }
+
+    const initialTime = getTimeParts(editingEvent.gameTime ?? time ?? '');
+    setEditMinutes(initialTime.mm);
+    setEditSeconds(initialTime.ss);
 
     const scorerMatch = players.find(
       (player) =>
@@ -202,7 +240,7 @@ export default function GoalDetailsScreen() {
         setSelectedAssist(assistMatch.id);
       }
     }
-  }, [editingEvent, eventId, players, router]);
+  }, [editingEvent, eventId, getTimeParts, players, router, time]);
 
   return (
     <View style={styles.container}>
@@ -226,7 +264,31 @@ export default function GoalDetailsScreen() {
           </View>
           <View style={styles.clockCard}>
             <Text style={styles.clockIcon}>⏱</Text>
-            <Text style={styles.clockTime}>{time ?? '--:--'}</Text>
+            {editingEvent ? (
+              <View style={styles.clockTimeEditorRow}>
+                <TextInput
+                  style={styles.clockTimeInput}
+                  placeholder="MM"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={editMinutes}
+                  onChangeText={(v) => setEditMinutes(v.replace(/\D/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  testID="edit-goal-time-minutes"
+                />
+                <Text style={styles.clockTimeColon}>:</Text>
+                <TextInput
+                  style={styles.clockTimeInput}
+                  placeholder="SS"
+                  placeholderTextColor={Colors.textTertiary}
+                  value={editSeconds}
+                  onChangeText={(v) => setEditSeconds(v.replace(/\D/g, '').slice(0, 2))}
+                  keyboardType="number-pad"
+                  testID="edit-goal-time-seconds"
+                />
+              </View>
+            ) : (
+              <Text style={styles.clockTime}>{time ?? '--:--'}</Text>
+            )}
             <Text style={styles.clockLabel}>GAME CLOCK</Text>
           </View>
         </View>
@@ -557,6 +619,30 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800' as const,
     color: Colors.dark,
+  },
+  clockTimeEditorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  clockTimeInput: {
+    width: 56,
+    backgroundColor: Colors.gray100,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+    textAlign: 'center',
+  },
+  clockTimeColon: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.dark,
+    marginTop: -1,
   },
   clockLabel: {
     fontSize: 10,

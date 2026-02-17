@@ -209,7 +209,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   }, []);
 
   const updateGoalEvent = useCallback(
-    (eventId: string, updates: { scorer: Player; assist?: Player | null }) => {
+    (eventId: string, updates: { scorer: Player; assist?: Player | null; gameTime?: string }) => {
       setLiveEvents((prev) =>
         prev.map((event) =>
           event.id === eventId
@@ -219,6 +219,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
                 scorerName: updates.scorer.name,
                 assistNumber: updates.assist?.number,
                 assistName: updates.assist?.name,
+                gameTime: updates.gameTime ?? event.gameTime,
               }
             : event,
         ),
