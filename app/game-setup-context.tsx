@@ -13,6 +13,16 @@ const WRITE_TOKEN_KEY = 'pointtracker.writeToken.v1';
 const DEVICE_NAME_KEY = 'pointtracker.deviceName.v1';
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
+function parseClockToSeconds(clock: string): number | null {
+  const trimmed = clock.trim();
+  const match = /^(\d+):([0-5]\d)$/.exec(trimmed);
+  if (!match) return null;
+  const minutes = Number(match[1]);
+  const seconds = Number(match[2]);
+  if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return null;
+  return minutes * 60 + seconds;
+}
+
 export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [backendBaseUrl, setBackendBaseUrlState] = useState<string>(DEFAULT_BACKEND_BASE_URL);
   const [writeToken, setWriteTokenState] = useState<string>('');
@@ -186,6 +196,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       const nextAway = isHome ? awayScore : awayScore + 1;
       const team = isHome ? homeTeam : awayTeam;
 
+      const gameClockSeconds = parseClockToSeconds(params.gameTime) ?? undefined;
       const newEvent: GameEvent = {
         id: createId(),
         type: 'goal',
@@ -196,6 +207,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         assistNumber: params.assist?.number,
         assistName: params.assist?.name,
         gameTime: params.gameTime,
+        gameClockSeconds,
         scoreAtEvent: { home: nextHome, away: nextAway },
         isSynced: false,
       };
@@ -204,9 +216,70 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       setHomeScore(nextHome);
       setAwayScore(nextAway);
       console.log('GameSetup add goal event', { newEvent });
+
+      const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+        /\/+$/,
+        '',
+      );
+      const token = writeToken.trim();
+
+      if (!token) {
+        console.log('Score sync skipped (missing write token)', { requestId: `goal-${newEvent.id}` });
+        return newEvent;
+      }
+      if (typeof newEvent.gameClockSeconds !== 'number') {
+        console.log('Score sync skipped (unparseable clock)', {
+          gameTime: newEvent.gameTime,
+          requestId: `goal-${newEvent.id}`,
+        });
+        return newEvent;
+      }
+
+      void (async () => {
+        try {
+          const requestId = `goal-${newEvent.id}`;
+          const res = await fetch(`${normalizedBaseUrl}/score`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+              'X-Write-Token': token,
+              ...(deviceName.trim() ? { 'X-Device-Name': deviceName.trim() } : null),
+            } as any,
+            body: JSON.stringify({
+              team: params.side,
+              gameClockSeconds: newEvent.gameClockSeconds,
+              scorer: params.scorer.number,
+              assist: params.assist?.number,
+              requestId,
+            }),
+          });
+
+          if (!res.ok) {
+            let message = `Request failed (${res.status})`;
+            try {
+              const payload = await res.json();
+              if (typeof payload?.message === 'string') message = payload.message;
+              if (typeof payload?.error === 'string') message = payload.error;
+            } catch {
+              // ignore
+            }
+            throw new Error(message);
+          }
+
+          setLiveEvents((prev) =>
+            prev.map((ev) => (ev.id === newEvent.id ? { ...ev, isSynced: true } : ev)),
+          );
+          console.log('Score synced', { requestId });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : 'Unknown error';
+          console.log('Score sync failed', { eventId: newEvent.id, message });
+        }
+      })();
+
       return newEvent;
     },
-    [awayScore, awayTeam, homeScore, homeTeam],
+    [awayScore, awayTeam, backendBaseUrl, deviceName, homeScore, homeTeam, writeToken],
   );
 
   const addHalftimeEvent = useCallback(
@@ -291,6 +364,10 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
                 assistNumber: updates.assist?.number,
                 assistName: updates.assist?.name,
                 gameTime: updates.gameTime ?? event.gameTime,
+                gameClockSeconds:
+                  typeof updates.gameTime === 'string'
+                    ? parseClockToSeconds(updates.gameTime) ?? undefined
+                    : event.gameClockSeconds,
               }
             : event,
         ),

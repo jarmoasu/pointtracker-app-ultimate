@@ -45,6 +45,7 @@ export interface GameEvent {
   assistNumber?: string;
   assistName?: string;
   gameTime: string;
+  gameClockSeconds?: number;
   scoreAtEvent?: GameScore;
   description?: string;
   isSynced: boolean;
