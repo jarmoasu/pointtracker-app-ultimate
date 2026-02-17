@@ -35,7 +35,14 @@ function GameKeepAwake() {
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerBackTitle: "Back" }}>
+    <Stack
+      screenOptions={{
+        headerBackTitle: "Back",
+        // Disable swipe-based navigation (iOS edge-swipe back, etc.).
+        // Navigation should only happen via explicit app buttons.
+        gestureEnabled: false,
+      }}
+    >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen
         name="game-history"
@@ -67,6 +74,8 @@ function RootLayoutNav() {
         options={{
           presentation: "modal",
           headerShown: true,
+          // Also disable modal swipe-to-dismiss gestures.
+          gestureEnabled: false,
         }}
       />
     </Stack>
