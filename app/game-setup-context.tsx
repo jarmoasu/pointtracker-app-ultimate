@@ -233,31 +233,43 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       void (async () => {
         try {
           const requestId = `goal-${newEvent.id}`;
+          const trimmedDeviceName = deviceName.trim();
+          const payload = {
+            homeTeamName: homeTeam.name,
+            awayTeamName: awayTeam.name,
+            HomeScore: String(nextHome),
+            awayScore: String(nextAway),
+            lastScoreTeam: team.name,
+            // Backend expects lastScore to identify which side/team scored.
+            // Valid values (per backend error): "home" | "away" | homeTeamName | awayTeamName
+            lastScore: params.side,
+            lastScorer: `${params.scorer.name} #${params.scorer.number}`,
+            lastAssist: params.assist ? `${params.assist.name} #${params.assist.number}` : '',
+          };
+
           const res = await fetch(`${normalizedBaseUrl}/update_result`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
               'X-Write-Token': token,
-              ...(deviceName.trim() ? { 'X-Device-Name': deviceName.trim() } : null),
-            } as any,
-            body: JSON.stringify({
-              homeTeamName: homeTeam.name,
-              awayTeamName: awayTeam.name,
-              HomeScore: String(nextHome),
-              awayScore: String(nextAway),
-              lastScore: team.name,
-              lastScorer: params.scorer.name,
-              lastAssist: params.assist?.name ?? '',
-            }),
+              ...(trimmedDeviceName ? { 'X-Device-Name': trimmedDeviceName } : {}),
+            },
+            body: JSON.stringify(payload),
           });
 
           if (!res.ok) {
             let message = `Request failed (${res.status})`;
             try {
-              const payload = await res.json();
-              if (typeof payload?.message === 'string') message = payload.message;
-              if (typeof payload?.error === 'string') message = payload.error;
+              const raw = await res.text();
+              try {
+                const errorPayload = JSON.parse(raw);
+                if (typeof errorPayload?.message === 'string') message = errorPayload.message;
+                if (typeof errorPayload?.error === 'string') message = errorPayload.error;
+              } catch {
+                const trimmed = raw.trim();
+                if (trimmed) message = trimmed;
+              }
             } catch {
               // ignore
             }
@@ -267,10 +279,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
           setLiveEvents((prev) =>
             prev.map((ev) => (ev.id === newEvent.id ? { ...ev, isSynced: true } : ev)),
           );
-          console.log('Result synced', { requestId });
+          console.log('Result synced', { requestId, payload });
         } catch (e) {
           const message = e instanceof Error ? e.message : 'Unknown error';
-          console.log('Result sync failed', { eventId: newEvent.id, message });
+          console.log('Result sync failed', {
+            eventId: newEvent.id,
+            requestId: `goal-${newEvent.id}`,
+            message,
+          });
         }
       })();
 

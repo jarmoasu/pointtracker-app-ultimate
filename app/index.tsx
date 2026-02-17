@@ -5,15 +5,18 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ChevronRight, PlusCircle, Disc } from 'lucide-react-native';
+import { ChevronRight, PlusCircle } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
 import { Game } from '@/types/game';
+
+const appLogo = require('../assets/images/adaptive-icon.png');
 
 function LiveBadge() {
   return (
@@ -145,7 +148,12 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View style={styles.logoContainer}>
-              <Disc size={22} color={Colors.white} />
+              <Image
+                source={appLogo}
+                style={styles.logoImage}
+                resizeMode="cover"
+                accessibilityLabel="PointTracker logo"
+              />
             </View>
             <Text style={styles.headerTitle}>PointTracker</Text>
           </View>
@@ -228,9 +236,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 40,
+    height: 40,
   },
   headerTitle: {
     fontSize: 24,

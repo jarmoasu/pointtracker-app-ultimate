@@ -140,6 +140,8 @@ export default function GameSetupScreen() {
     backendBaseUrl,
     writeToken,
     deviceName,
+    homeTeam,
+    awayTeam,
     homeTeamName,
     awayTeamName,
     homePlayers,
@@ -304,6 +306,60 @@ export default function GameSetupScreen() {
     ]);
   };
 
+  const syncTeamsToBackend = async () => {
+    const token = writeToken.trim();
+    if (!token) {
+      console.log('Teams sync skipped (missing write token)');
+      return;
+    }
+
+    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+      /\/+$/,
+      '',
+    );
+    const trimmedDeviceName = deviceName.trim();
+    const payload = {
+      homeTeamName: homeTeam.name,
+      awayTeamName: awayTeam.name,
+    };
+
+    try {
+      const res = await fetch(`${normalizedBaseUrl}/teams`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+          'X-Write-Token': token,
+          ...(trimmedDeviceName ? { 'X-Device-Name': trimmedDeviceName } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        let message = `Request failed (${res.status})`;
+        try {
+          const raw = await res.text();
+          try {
+            const errorPayload = JSON.parse(raw);
+            if (typeof errorPayload?.message === 'string') message = errorPayload.message;
+            if (typeof errorPayload?.error === 'string') message = errorPayload.error;
+          } catch {
+            const trimmed = raw.trim();
+            if (trimmed) message = trimmed;
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(message);
+      }
+
+      console.log('Teams synced', payload);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      console.log('Teams sync failed', { message, payload });
+    }
+  };
+
   const handleStartPress = () => {
     console.log('GameSetup start pressed');
     setIsStartConfirmVisible(true);
@@ -311,6 +367,7 @@ export default function GameSetupScreen() {
 
   const handleConfirmContinue = () => {
     console.log('GameSetup confirm continue - starting new game');
+    void syncTeamsToBackend();
     resetLiveGame();
     setIsStartConfirmVisible(false);
     router.push('/live-scoring' as Href);
