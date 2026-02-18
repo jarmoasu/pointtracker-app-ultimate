@@ -32,6 +32,12 @@ import { Player } from '@/types/game';
 import { useGameSetup, TeamSide } from '@/app/game-setup-context';
 
 type CsvRosterRow = { teamName: string; playerName: string; jerseyNumber: string };
+type StreamAdminState = {
+  writer?: {
+    activeWriterName?: string | null;
+    claimedAt?: string | null;
+  } | null;
+};
 
 const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
 // Back-compat: earlier builds stored an array of recent URLs under this key.
@@ -175,6 +181,9 @@ export default function GameSetupScreen() {
   const [csvRosterByTeam, setCsvRosterByTeam] = useState<
     Record<string, Array<{ name: string; number: string }>>
   >({});
+  const [activeWriterName, setActiveWriterName] = useState<string>('');
+  const [claimedAtIso, setClaimedAtIso] = useState<string>('');
+  const [isAdminStateLoading, setIsAdminStateLoading] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('GameSetup initial teams', {
@@ -447,6 +456,36 @@ export default function GameSetupScreen() {
     );
   };
 
+  const fetchStreamReservationInfo = async () => {
+    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+      /\/+$/,
+      '',
+    );
+
+    try {
+      setIsAdminStateLoading(true);
+      const res = await fetch(`${normalizedBaseUrl}/admin/state`);
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const payload = (await res.json()) as StreamAdminState;
+      const writerName = payload?.writer?.activeWriterName?.trim() ?? '';
+      const claimedAt = payload?.writer?.claimedAt?.trim() ?? '';
+      setActiveWriterName(writerName);
+      setClaimedAtIso(claimedAt);
+    } catch {
+      setActiveWriterName('');
+      setClaimedAtIso('');
+    } finally {
+      setIsAdminStateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void fetchStreamReservationInfo();
+  }, [backendBaseUrl]);
+
   const handleClaimStream = async () => {
     const trimmedClaimCode = claimCode.trim();
     if (!trimmedClaimCode) {
@@ -500,6 +539,7 @@ export default function GameSetupScreen() {
 
       setWriteToken(nextWriteToken);
       setClaimCode('');
+      void fetchStreamReservationInfo();
       Alert.alert('Stream claimed', 'Write token saved on this device.');
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error';
@@ -699,7 +739,7 @@ export default function GameSetupScreen() {
             />
           </View>
 
-          <Text style={styles.inputLabel}>YOUR NAME</Text>
+          <Text style={styles.inputLabel}>YOUR (NICK) NAME</Text>
           <View style={styles.inputRow}>
             <Wifi size={18} color={Colors.textTertiary} />
             <TextInput
@@ -742,11 +782,28 @@ export default function GameSetupScreen() {
             )}
           </TouchableOpacity>
 
-          {writeToken ? (
-            <Text style={styles.writeTokenHint} testID="write-token-saved-hint">
-              Write token saved on this device.
-            </Text>
-          ) : null}
+          <View style={styles.streamReservationInfo}>
+            {isAdminStateLoading ? (
+              <Text style={styles.streamReservationText}>Checking stream reservation…</Text>
+            ) : activeWriterName ? (
+              <>
+                <Text style={styles.streamReservationText}>
+                  Reserved by: <Text style={styles.streamReservationValue}>{activeWriterName}</Text>
+                </Text>
+                {claimedAtIso ? (
+                  <Text style={styles.streamReservationText}>
+                    Claimed at:{' '}
+                    <Text style={styles.streamReservationValue}>
+                      {new Date(claimedAtIso).toLocaleString()}
+                    </Text>
+                  </Text>
+                ) : null}
+              </>
+            ) : (
+              <Text style={styles.streamReservationText}>No active stream reservation info.</Text>
+            )}
+          </View>
+
         </View>
 
         <View style={styles.bottomSpacer} />
@@ -977,6 +1034,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600' as const,
     color: Colors.textSecondary,
+  },
+  streamReservationInfo: {
+    marginTop: 12,
+    backgroundColor: Colors.gray100,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    gap: 4,
+  },
+  streamReservationText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+  },
+  streamReservationValue: {
+    color: Colors.dark,
+    fontWeight: '700' as const,
   },
   matchupRow: {
     flexDirection: 'row',
