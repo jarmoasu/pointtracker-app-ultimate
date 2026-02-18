@@ -1,6 +1,6 @@
-## PointTracker
+## Upsi - Ultimate Point Streamer
 
-PointTracker is a cross-platform (iOS/Android/Web) app for setting up a match, tracking points live, and reviewing game logs and history.
+Upsi is a cross-platform (iOS/Android/Web) app for setting up a match, tracking points live, and reviewing game logs and history.
 
 ### Key features
 

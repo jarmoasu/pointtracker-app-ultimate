@@ -152,10 +152,13 @@ export default function HomeScreen() {
                 source={appLogo}
                 style={styles.logoImage}
                 resizeMode="cover"
-                accessibilityLabel="PointTracker logo"
+                accessibilityLabel="Upsi logo"
               />
             </View>
-            <Text style={styles.headerTitle}>PointTracker</Text>
+            <View style={styles.headerTitles}>
+              <Text style={styles.headerTitle}>Upsi</Text>
+              <Text style={styles.headerSubtitle}>Ultimate Point Streamer</Text>
+            </View>
           </View>
         </View>
 
@@ -232,23 +235,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  headerTitles: {
+    flexDirection: 'column',
+  },
   logoContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 64,
+    height: 64,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
   logoImage: {
-    width: 40,
-    height: 40,
+    width: 64,
+    height: 64,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800' as const,
     color: Colors.dark,
     letterSpacing: -0.5,
+  },
+  headerSubtitle: {
+    fontSize: 12,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    letterSpacing: 0.2,
   },
   newGameBanner: {
     flexDirection: 'row',

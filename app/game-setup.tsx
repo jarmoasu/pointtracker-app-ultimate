@@ -11,9 +11,11 @@ import {
   ActivityIndicator,
   Pressable,
   Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
+import { useHeaderHeight } from '@react-navigation/elements';
 import {
   Wifi,
   KeyRound,
@@ -134,6 +136,7 @@ function parseRosterCsv(text: string): {
 
 export default function GameSetupScreen() {
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
   const [claimCode, setClaimCode] = useState<string>('');
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const {
@@ -507,7 +510,11 @@ export default function GameSetupScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+    >
       <Stack.Screen
         options={{
           title: 'Game Setup',
@@ -519,6 +526,9 @@ export default function GameSetupScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets
       >
         <Text style={styles.sectionTitle}>Matchup</Text>
         <View style={styles.matchupRow}>
@@ -689,12 +699,12 @@ export default function GameSetupScreen() {
             />
           </View>
 
-          <Text style={styles.inputLabel}>DEVICE NAME</Text>
+          <Text style={styles.inputLabel}>YOUR NAME</Text>
           <View style={styles.inputRow}>
             <Wifi size={18} color={Colors.textTertiary} />
             <TextInput
               style={styles.input}
-              placeholder={`scorekeeper-${Platform.OS}`}
+              placeholder="e.g. Alex"
               placeholderTextColor={Colors.textTertiary}
               value={deviceName}
               onChangeText={setDeviceName}
@@ -894,7 +904,7 @@ export default function GameSetupScreen() {
         </Pressable>
       </Modal>
 
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

@@ -7,15 +7,19 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, Check, Save, Trash2, Ban, Plus } from 'lucide-react-native';
+import { useHeaderHeight } from '@react-navigation/elements';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
 
 export default function GoalDetailsScreen() {
   const router = useRouter();
+  const headerHeight = useHeaderHeight();
   const { side, time, eventId } = useLocalSearchParams<{
     side?: 'home' | 'away';
     time?: string;
@@ -243,7 +247,11 @@ export default function GoalDetailsScreen() {
   }, [editingEvent, eventId, getTimeParts, players, router, time]);
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}
+    >
       <Stack.Screen
         options={{
           title: editingEvent ? 'Edit Goal' : 'Goal Details',
@@ -255,6 +263,9 @@ export default function GoalDetailsScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+        automaticallyAdjustKeyboardInsets
       >
         <View style={styles.topCards}>
           <View style={styles.teamCard}>
@@ -560,7 +571,7 @@ export default function GoalDetailsScreen() {
           <Text style={styles.discardText}>Discard Event</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
