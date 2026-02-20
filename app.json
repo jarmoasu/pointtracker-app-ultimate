@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.point-tracker-app"
+      "bundleIdentifier": "com.jarmoasu.upsi"
     },
     "android": {
       "adaptiveIcon": {
