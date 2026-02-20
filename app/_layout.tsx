@@ -25,8 +25,6 @@ function GameKeepAwake() {
       activateKeepAwake(tag);
       return () => deactivateKeepAwake(tag);
     }
-
-    deactivateKeepAwake(tag);
     return undefined;
   }, [shouldKeepAwake]);
 
