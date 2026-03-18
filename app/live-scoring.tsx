@@ -281,7 +281,7 @@ export default function LiveScoringScreen() {
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
               <Timer size={20} color={Colors.warning} />
             </View>
-            <Text style={styles.quickActionLabel}>HOME{'\n'}TIMEOUT</Text>
+            <Text style={styles.quickActionLabel}>{homeTeam.name.toUpperCase()}{'\n'}TIMEOUT</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -293,7 +293,7 @@ export default function LiveScoringScreen() {
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
               <Timer size={20} color={Colors.warning} />
             </View>
-            <Text style={styles.quickActionLabel}>AWAY{'\n'}TIMEOUT</Text>
+            <Text style={styles.quickActionLabel}>{awayTeam.name.toUpperCase()}{'\n'}TIMEOUT</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
