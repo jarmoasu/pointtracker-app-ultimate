@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -37,6 +37,8 @@ export default function GoalDetailsScreen() {
   const [newPlayerNumber, setNewPlayerNumber] = useState<string>('');
   const [editMinutes, setEditMinutes] = useState<string>('');
   const [editSeconds, setEditSeconds] = useState<string>('');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const scorerSectionY = useRef<number>(0);
 
   const editingEvent = useMemo(() => {
     if (!eventId) return null;
@@ -107,6 +109,12 @@ export default function GoalDetailsScreen() {
     [players, trimmedAssistSearch],
   );
 
+  const scrollToScorer = useCallback(() => {
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: scorerSectionY.current, animated: true });
+    }, 50);
+  }, []);
+
   const resetNewPlayerForm = useCallback(() => {
     setIsNewPlayerVisible(false);
     setNewPlayerTarget(null);
@@ -139,6 +147,7 @@ export default function GoalDetailsScreen() {
     if (newPlayerTarget === 'assist') {
       setSelectedAssist(createdPlayer.id);
       setAssistSearch('');
+      scrollToScorer();
     } else {
       setSelectedScorer(createdPlayer.id);
       setScorerSearch('');
@@ -261,6 +270,7 @@ export default function GoalDetailsScreen() {
         }}
       />
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -379,6 +389,7 @@ export default function GoalDetailsScreen() {
                   return;
                 }
                 setSelectedAssist(player.id);
+                scrollToScorer();
               }}
               activeOpacity={0.7}
               testID={`assist-${player.id}`}
@@ -420,7 +431,10 @@ export default function GoalDetailsScreen() {
 
         <TouchableOpacity
           style={styles.noAssistRow}
-          onPress={() => setSelectedAssist('none')}
+          onPress={() => {
+            setSelectedAssist('none');
+            scrollToScorer();
+          }}
           activeOpacity={0.7}
           testID="no-assist-button"
         >
@@ -428,7 +442,10 @@ export default function GoalDetailsScreen() {
           <Text style={styles.noAssistText}>No Assist / Callahan</Text>
         </TouchableOpacity>
 
-        <View style={[styles.sectionRow, { marginTop: 24 }]}>
+        <View
+          style={[styles.sectionRow, { marginTop: 24 }]}
+          onLayout={(e) => { scorerSectionY.current = e.nativeEvent.layout.y; }}
+        >
           <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
         </View>
 
