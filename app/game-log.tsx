@@ -101,7 +101,7 @@ function GoalEventCard({
 
         <View style={styles.eventPlayerRow}>
           <Text style={styles.eventPlayerLabel}>ASSIST</Text>
-          {event.assistNumber ? (
+          {event.assistNumber || event.assistName ? (
             <>
               <View
                 style={[
