@@ -305,127 +305,6 @@ export default function GoalDetailsScreen() {
         </View>
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
-        </View>
-
-        {isNewPlayerVisible && newPlayerTarget === 'scorer' ? (
-          <View style={styles.newPlayerCard} testID="new-player-form">
-            <Text style={styles.newPlayerTitle}>Add New Scorer</Text>
-            <View style={styles.newPlayerRow}>
-              <TextInput
-                style={styles.newPlayerInput}
-                placeholder="Player name"
-                placeholderTextColor={Colors.textTertiary}
-                value={newPlayerName}
-                onChangeText={setNewPlayerName}
-                testID="new-player-name"
-              />
-              <TextInput
-                style={styles.newPlayerInput}
-                placeholder="#"
-                placeholderTextColor={Colors.textTertiary}
-                value={newPlayerNumber}
-                onChangeText={setNewPlayerNumber}
-                keyboardType="number-pad"
-                testID="new-player-number"
-              />
-            </View>
-            <View style={styles.newPlayerActions}>
-              <TouchableOpacity
-                style={styles.newPlayerCancel}
-                onPress={resetNewPlayerForm}
-                testID="new-player-cancel"
-              >
-                <Text style={styles.newPlayerCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.newPlayerSave}
-                onPress={handleAddPlayer}
-                testID="new-player-save"
-              >
-                <Text style={styles.newPlayerSaveText}>Add Player</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : null}
-
-        <View style={styles.searchBox}>
-          <Search size={18} color={Colors.textTertiary} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search # or Name"
-            placeholderTextColor={Colors.textTertiary}
-            value={scorerSearch}
-            onChangeText={setScorerSearch}
-            testID="scorer-search-input"
-          />
-        </View>
-
-        {filteredScorers.length > 0 ? (
-          filteredScorers.map((player) => (
-            <TouchableOpacity
-              key={player.id}
-              style={[
-                styles.playerRow,
-                selectedScorer === player.id && styles.playerRowSelected,
-              ]}
-              onPress={() => {
-                if (selectedAssist && selectedAssist !== 'none' && selectedAssist === player.id) {
-                  Alert.alert('Invalid selection', 'Assist cannot be the same as scorer.');
-                  return;
-                }
-                setSelectedScorer(player.id);
-              }}
-              activeOpacity={0.7}
-              testID={`scorer-${player.id}`}
-            >
-              <View
-                style={[
-                  styles.playerNumber,
-                  selectedScorer === player.id && styles.playerNumberSelected,
-                ]}
-              >
-                <Text style={styles.playerNumberText}>{player.number}</Text>
-              </View>
-              <Text
-                style={[
-                  styles.playerName,
-                  selectedScorer === player.id && styles.playerNameSelected,
-                ]}
-              >
-                {player.name}
-              </Text>
-              {selectedScorer === player.id && (
-                <View style={styles.checkIcon}>
-                  <Check size={18} color={Colors.white} />
-                </View>
-              )}
-            </TouchableOpacity>
-          ))
-        ) : trimmedScorerSearch.length === 0 ? (
-          <View style={styles.emptyRoster} testID="scorer-empty">
-            <Text style={styles.emptyTitle}>No roster yet</Text>
-            <Text style={styles.emptyText}>Add players in game setup to select a scorer.</Text>
-          </View>
-        ) : null}
-
-        {!isNewPlayerVisible && trimmedScorerSearch.length > 0 && !hasScorerMatch ? (
-          <TouchableOpacity
-            style={styles.addPlayerPrompt}
-            onPress={() => openNewPlayerForm('scorer', trimmedScorerSearch)}
-            testID="add-scorer-prompt"
-          >
-            <View style={styles.addPlayerPromptIcon}>
-              <Plus size={16} color={Colors.white} />
-            </View>
-            <View style={styles.addPlayerPromptTextWrap}>
-              <Text style={styles.addPlayerPromptTitle}>Add new player</Text>
-              <Text style={styles.addPlayerPromptText}>{`Add "${trimmedScorerSearch}" to roster`}</Text>
-            </View>
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={[styles.sectionRow, { marginTop: 24 }]}>
           <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>🏃 ASSIST</Text>
             <Text style={styles.optionalLabel}>optional</Text>
@@ -548,6 +427,127 @@ export default function GoalDetailsScreen() {
           <Ban size={18} color={Colors.textTertiary} />
           <Text style={styles.noAssistText}>No Assist / Callahan</Text>
         </TouchableOpacity>
+
+        <View style={[styles.sectionRow, { marginTop: 24 }]}>
+          <Text style={styles.sectionTitle}>⚽ GOAL SCORER</Text>
+        </View>
+
+        {isNewPlayerVisible && newPlayerTarget === 'scorer' ? (
+          <View style={styles.newPlayerCard} testID="new-player-form">
+            <Text style={styles.newPlayerTitle}>Add New Scorer</Text>
+            <View style={styles.newPlayerRow}>
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="Player name"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerName}
+                onChangeText={setNewPlayerName}
+                testID="new-player-name"
+              />
+              <TextInput
+                style={styles.newPlayerInput}
+                placeholder="#"
+                placeholderTextColor={Colors.textTertiary}
+                value={newPlayerNumber}
+                onChangeText={setNewPlayerNumber}
+                keyboardType="number-pad"
+                testID="new-player-number"
+              />
+            </View>
+            <View style={styles.newPlayerActions}>
+              <TouchableOpacity
+                style={styles.newPlayerCancel}
+                onPress={resetNewPlayerForm}
+                testID="new-player-cancel"
+              >
+                <Text style={styles.newPlayerCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.newPlayerSave}
+                onPress={handleAddPlayer}
+                testID="new-player-save"
+              >
+                <Text style={styles.newPlayerSaveText}>Add Player</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles.searchBox}>
+          <Search size={18} color={Colors.textTertiary} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search # or Name"
+            placeholderTextColor={Colors.textTertiary}
+            value={scorerSearch}
+            onChangeText={setScorerSearch}
+            testID="scorer-search-input"
+          />
+        </View>
+
+        {filteredScorers.length > 0 ? (
+          filteredScorers.map((player) => (
+            <TouchableOpacity
+              key={player.id}
+              style={[
+                styles.playerRow,
+                selectedScorer === player.id && styles.playerRowSelected,
+              ]}
+              onPress={() => {
+                if (selectedAssist && selectedAssist !== 'none' && selectedAssist === player.id) {
+                  Alert.alert('Invalid selection', 'Assist cannot be the same as scorer.');
+                  return;
+                }
+                setSelectedScorer(player.id);
+              }}
+              activeOpacity={0.7}
+              testID={`scorer-${player.id}`}
+            >
+              <View
+                style={[
+                  styles.playerNumber,
+                  selectedScorer === player.id && styles.playerNumberSelected,
+                ]}
+              >
+                <Text style={styles.playerNumberText}>{player.number}</Text>
+              </View>
+              <Text
+                style={[
+                  styles.playerName,
+                  selectedScorer === player.id && styles.playerNameSelected,
+                ]}
+              >
+                {player.name}
+              </Text>
+              {selectedScorer === player.id && (
+                <View style={styles.checkIcon}>
+                  <Check size={18} color={Colors.white} />
+                </View>
+              )}
+            </TouchableOpacity>
+          ))
+        ) : trimmedScorerSearch.length === 0 ? (
+          <View style={styles.emptyRoster} testID="scorer-empty">
+            <Text style={styles.emptyTitle}>No roster yet</Text>
+            <Text style={styles.emptyText}>Add players in game setup to select a scorer.</Text>
+          </View>
+        ) : null}
+
+        {!isNewPlayerVisible && trimmedScorerSearch.length > 0 && !hasScorerMatch ? (
+          <TouchableOpacity
+            style={styles.addPlayerPrompt}
+            onPress={() => openNewPlayerForm('scorer', trimmedScorerSearch)}
+            testID="add-scorer-prompt"
+          >
+            <View style={styles.addPlayerPromptIcon}>
+              <Plus size={16} color={Colors.white} />
+            </View>
+            <View style={styles.addPlayerPromptTextWrap}>
+              <Text style={styles.addPlayerPromptTitle}>Add new player</Text>
+              <Text style={styles.addPlayerPromptText}>{`Add "${trimmedScorerSearch}" to roster`}</Text>
+            </View>
+          </TouchableOpacity>
+        ) : null}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
