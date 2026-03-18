@@ -11,6 +11,8 @@ const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const BACKEND_BASE_URL_KEY = 'pointtracker.backendBaseUrl.v1';
 const WRITE_TOKEN_KEY = 'pointtracker.writeToken.v1';
 const DEVICE_NAME_KEY = 'pointtracker.deviceName.v1';
+const PAST_GAMES_KEY = 'pointtracker.pastGames.v1';
+const PAST_GAME_EVENTS_KEY = 'pointtracker.pastGameEvents.v1';
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
 function parseClockToSeconds(clock: string): number | null {
@@ -47,11 +49,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     let isMounted = true;
     (async () => {
       try {
-        const [storedBaseUrl, storedWriteToken, storedDeviceName] = await Promise.all([
-          AsyncStorage.getItem(BACKEND_BASE_URL_KEY),
-          AsyncStorage.getItem(WRITE_TOKEN_KEY),
-          AsyncStorage.getItem(DEVICE_NAME_KEY),
-        ]);
+        const [storedBaseUrl, storedWriteToken, storedDeviceName, storedPastGames, storedPastGameEvents] =
+          await Promise.all([
+            AsyncStorage.getItem(BACKEND_BASE_URL_KEY),
+            AsyncStorage.getItem(WRITE_TOKEN_KEY),
+            AsyncStorage.getItem(DEVICE_NAME_KEY),
+            AsyncStorage.getItem(PAST_GAMES_KEY),
+            AsyncStorage.getItem(PAST_GAME_EVENTS_KEY),
+          ]);
 
         if (!isMounted) return;
 
@@ -63,6 +68,24 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         }
         if (typeof storedDeviceName === 'string' && storedDeviceName.trim()) {
           setDeviceNameState(storedDeviceName.trim());
+        }
+        if (typeof storedPastGames === 'string') {
+          try {
+            const parsed = JSON.parse(storedPastGames);
+            if (Array.isArray(parsed)) setPastGames(parsed);
+          } catch {
+            // ignore malformed history
+          }
+        }
+        if (typeof storedPastGameEvents === 'string') {
+          try {
+            const parsed = JSON.parse(storedPastGameEvents);
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              setPastGameEvents(parsed);
+            }
+          } catch {
+            // ignore malformed history
+          }
         }
       } catch {
         // ignore persisted config hydration failures
@@ -475,27 +498,38 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       pointNumber: liveEvents.filter((event) => event.type === 'goal').length,
     };
 
-    setPastGames((prev) => [completedGame, ...prev]);
-    setPastGameEvents((prev) => ({ ...prev, [completedGame.id]: [...liveEvents] }));
+    const nextGames = [completedGame, ...pastGames];
+    const nextEvents = { ...pastGameEvents, [completedGame.id]: [...liveEvents] };
+
+    setPastGames(nextGames);
+    setPastGameEvents(nextEvents);
     setIsGameEnded(true);
+    void AsyncStorage.setItem(PAST_GAMES_KEY, JSON.stringify(nextGames));
+    void AsyncStorage.setItem(PAST_GAME_EVENTS_KEY, JSON.stringify(nextEvents));
     console.log('GameSetup end game', { completedGame, events: liveEvents.length });
     return completedGame;
-  }, [awayScore, awayTeam, homeScore, homeTeam, liveEvents]);
+  }, [awayScore, awayTeam, homeScore, homeTeam, liveEvents, pastGameEvents, pastGames]);
 
-  const removePastGame = useCallback((gameId: string) => {
-    setPastGames((prev) => prev.filter((game) => game.id !== gameId));
-    setPastGameEvents((prev) => {
-      if (!(gameId in prev)) return prev;
-      const next = { ...prev };
-      delete next[gameId];
-      return next;
-    });
-    console.log('GameSetup remove past game', { gameId });
-  }, []);
+  const removePastGame = useCallback(
+    (gameId: string) => {
+      const nextGames = pastGames.filter((game) => game.id !== gameId);
+      const nextEvents = { ...pastGameEvents };
+      delete nextEvents[gameId];
+
+      setPastGames(nextGames);
+      setPastGameEvents(nextEvents);
+      void AsyncStorage.setItem(PAST_GAMES_KEY, JSON.stringify(nextGames));
+      void AsyncStorage.setItem(PAST_GAME_EVENTS_KEY, JSON.stringify(nextEvents));
+      console.log('GameSetup remove past game', { gameId });
+    },
+    [pastGameEvents, pastGames],
+  );
 
   const clearPastGames = useCallback(() => {
     setPastGames([]);
     setPastGameEvents({});
+    void AsyncStorage.removeItem(PAST_GAMES_KEY);
+    void AsyncStorage.removeItem(PAST_GAME_EVENTS_KEY);
     console.log('GameSetup clear past games');
   }, []);
 
