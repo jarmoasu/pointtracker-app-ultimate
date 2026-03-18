@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Alert,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -24,6 +26,7 @@ export default function LiveScoringScreen() {
     awayTeam,
     homeScore,
     awayScore,
+    liveEvents,
     addHalftimeEvent,
     addTimeoutEvent,
     hasHalftimeEvent,
@@ -35,6 +38,15 @@ export default function LiveScoringScreen() {
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
   const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockStartRef = useRef<number>(Date.now());
+  const [pendingTimeout, setPendingTimeout] = useState<{
+    side: 'home' | 'away';
+    currentTime: string;
+  } | null>(null);
+
+  const lastGoalEvent = useMemo(
+    () => liveEvents.find((e) => e.type === 'goal') ?? null,
+    [liveEvents],
+  );
 
   const handleEndGamePress = useCallback(() => {
     console.log('End game pressed - showing confirmation');
@@ -153,11 +165,28 @@ export default function LiveScoringScreen() {
   const handleTimeoutPress = useCallback(
     (side: 'home' | 'away') => {
       const roundedTime = getRoundedGameTime();
-      const timeoutEvent = addTimeoutEvent({ side, gameTime: roundedTime });
-      console.log('LiveScoring timeout logged', timeoutEvent);
+      setPendingTimeout({ side, currentTime: roundedTime });
     },
-    [addTimeoutEvent, getRoundedGameTime],
+    [getRoundedGameTime],
   );
+
+  const confirmTimeoutNow = useCallback(() => {
+    if (!pendingTimeout) return;
+    const timeoutEvent = addTimeoutEvent({ side: pendingTimeout.side, gameTime: pendingTimeout.currentTime });
+    console.log('LiveScoring timeout logged', timeoutEvent);
+    setPendingTimeout(null);
+  }, [pendingTimeout, addTimeoutEvent]);
+
+  const confirmTimeoutAtGoal = useCallback(() => {
+    if (!pendingTimeout || !lastGoalEvent) return;
+    const timeoutEvent = addTimeoutEvent({ side: pendingTimeout.side, gameTime: lastGoalEvent.gameTime });
+    console.log('LiveScoring timeout logged at goal time', timeoutEvent);
+    setPendingTimeout(null);
+  }, [pendingTimeout, lastGoalEvent, addTimeoutEvent]);
+
+  const cancelPendingTimeout = useCallback(() => {
+    setPendingTimeout(null);
+  }, []);
 
   return (
     <View style={styles.container}>
@@ -321,6 +350,45 @@ export default function LiveScoringScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={!!pendingTimeout}
+        transparent
+        animationType="fade"
+        onRequestClose={cancelPendingTimeout}
+      >
+        <Pressable style={styles.timeoutModalOverlay} onPress={cancelPendingTimeout}>
+          <Pressable style={styles.timeoutModalCard} onPress={() => {}}>
+            <Text style={styles.timeoutModalTitle}>
+              {pendingTimeout?.side === 'home' ? homeTeam.name : awayTeam.name} Timeout
+            </Text>
+            <Text style={styles.timeoutModalSubtitle}>When was the timeout called?</Text>
+
+            <TouchableOpacity style={styles.timeoutOptionBtn} onPress={confirmTimeoutNow}>
+              <Text style={styles.timeoutOptionLabel}>Right now</Text>
+              <Text style={styles.timeoutOptionTime}>{pendingTimeout?.currentTime}</Text>
+            </TouchableOpacity>
+
+            {lastGoalEvent && (
+              <TouchableOpacity
+                style={[styles.timeoutOptionBtn, styles.timeoutOptionGoalBtn]}
+                onPress={confirmTimeoutAtGoal}
+              >
+                <Text style={[styles.timeoutOptionLabel, styles.timeoutOptionGoalLabel]}>
+                  Same time as last goal
+                </Text>
+                <Text style={[styles.timeoutOptionTime, styles.timeoutOptionGoalTime]}>
+                  {lastGoalEvent.gameTime}
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity style={styles.timeoutCancelBtn} onPress={cancelPendingTimeout}>
+              <Text style={styles.timeoutCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -547,5 +615,68 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: Colors.primaryLight,
     padding: 0,
+  },
+  timeoutModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  timeoutModalCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: 20,
+    padding: 22,
+  },
+  timeoutModalTitle: {
+    fontSize: 20,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    marginBottom: 6,
+  },
+  timeoutModalSubtitle: {
+    fontSize: 14,
+    fontWeight: '500' as const,
+    color: Colors.textSecondary,
+    marginBottom: 18,
+  },
+  timeoutOptionBtn: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.primaryLight,
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 10,
+  },
+  timeoutOptionLabel: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+  },
+  timeoutOptionTime: {
+    fontSize: 15,
+    fontWeight: '700' as const,
+    color: Colors.primary,
+  },
+  timeoutOptionGoalBtn: {
+    backgroundColor: Colors.warningLight,
+  },
+  timeoutOptionGoalLabel: {
+    color: Colors.warning,
+  },
+  timeoutOptionGoalTime: {
+    color: Colors.warning,
+  },
+  timeoutCancelBtn: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  timeoutCancelText: {
+    fontSize: 15,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
   },
 });
