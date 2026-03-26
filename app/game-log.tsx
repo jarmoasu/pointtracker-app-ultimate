@@ -85,21 +85,6 @@ function GoalEventCard({
 
       <View style={styles.eventDetails}>
         <View style={styles.eventPlayerRow}>
-          <Text style={styles.eventPlayerLabel}>GOAL</Text>
-          <View
-            style={[
-              styles.eventPlayerNumber,
-              { backgroundColor: isHome ? Colors.primary : Colors.dark },
-            ]}
-          >
-            <Text style={styles.eventPlayerNumText}>{event.scorerNumber}</Text>
-          </View>
-          <Text style={styles.eventPlayerName} numberOfLines={1}>
-            {event.scorerName}
-          </Text>
-        </View>
-
-        <View style={styles.eventPlayerRow}>
           <Text style={styles.eventPlayerLabel}>ASSIST</Text>
           {event.assistNumber || event.assistName ? (
             <>
@@ -125,6 +110,21 @@ function GoalEventCard({
               <Text style={styles.callahanText}>CALLAHAN</Text>
             </>
           )}
+        </View>
+
+        <View style={styles.eventPlayerRow}>
+          <Text style={styles.eventPlayerLabel}>GOAL</Text>
+          <View
+            style={[
+              styles.eventPlayerNumber,
+              { backgroundColor: isHome ? Colors.primary : Colors.dark },
+            ]}
+          >
+            <Text style={styles.eventPlayerNumText}>{event.scorerNumber}</Text>
+          </View>
+          <Text style={styles.eventPlayerName} numberOfLines={1}>
+            {event.scorerName}
+          </Text>
         </View>
       </View>
 

@@ -100,7 +100,8 @@ export default function LiveScoringScreen() {
         clockIntervalRef.current = null;
       }
     };
-  }, [elapsedSeconds, isClockRunning]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClockRunning]);
 
   const formattedClock = useMemo(() => {
     const minutes = Math.floor(elapsedSeconds / 60);
@@ -153,14 +154,14 @@ export default function LiveScoringScreen() {
   );
 
   const handleHalftimePress = useCallback(() => {
-    const roundedTime = getRoundedGameTime();
-    const halftimeEvent = addHalftimeEvent({ gameTime: roundedTime });
+    const gameTime = lastGoalEvent ? lastGoalEvent.gameTime : getRoundedGameTime();
+    const halftimeEvent = addHalftimeEvent({ gameTime });
     if (!halftimeEvent) {
       Alert.alert('Half-time already logged', 'Only one half-time can be added per game.');
       return;
     }
     console.log('LiveScoring halftime logged', halftimeEvent);
-  }, [addHalftimeEvent, getRoundedGameTime]);
+  }, [addHalftimeEvent, getRoundedGameTime, lastGoalEvent]);
 
   const handleTimeoutPress = useCallback(
     (side: 'home' | 'away') => {
