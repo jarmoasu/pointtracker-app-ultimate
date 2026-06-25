@@ -39,6 +39,9 @@ type StreamAdminState = {
   } | null;
 };
 
+const PELIKONE_HISTORY_KEY = 'pointtracker.pelikoneHistory.v1';
+const PELIKONE_HISTORY_MAX = 5;
+type PelikoneHistoryEntry = { url: string; teamName: string };
 const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
 // Back-compat: earlier builds stored an array of recent URLs under this key.
 const CSV_URL_HISTORY_KEY = 'pointtracker.csvUrlHistory.v1';
@@ -46,6 +49,43 @@ const CSV_TEST_AND_EXAMPLE_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv';
 
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&ouml;/g, 'ö')
+    .replace(/&auml;/g, 'ä')
+    .replace(/&aring;/g, 'å')
+    .replace(/&Ouml;/g, 'Ö')
+    .replace(/&Auml;/g, 'Ä')
+    .replace(/&Aring;/g, 'Å')
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)));
+}
+
+function parsePelikoneHtml(html: string): { teamName: string; players: Array<{ name: string; number: string }> } {
+  const h1Match = html.match(/<h1[^>]*>([^<]+)<\/h1>/i);
+  const teamName = h1Match ? decodeHtmlEntities(h1Match[1].trim()) : 'Pelikone Team';
+
+  // Each player row: <tr><td ...>NUMBER</td><td><a href='?view=playercard...'>NAME</a>
+  const rowRegex = /<tr><td[^>]*>(\d+)<\/td><td><a[^>]+\?view=playercard[^'">]*['"][^>]*>([^<]+)<\/a>/gi;
+  const seen = new Set<string>();
+  const players: Array<{ name: string; number: string }> = [];
+  let m: RegExpExecArray | null;
+  while ((m = rowRegex.exec(html)) !== null) {
+    const number = m[1].trim();
+    const name = decodeHtmlEntities(m[2].trim());
+    if (name && !seen.has(name)) {
+      seen.add(name);
+      players.push({ name, number });
+    }
+  }
+
+  return { teamName, players };
+}
 
 function parseCsvLine(line: string): string[] {
   // Basic CSV parsing with support for quotes and escaped quotes ("")
@@ -181,6 +221,15 @@ export default function GameSetupScreen() {
   const [csvRosterByTeam, setCsvRosterByTeam] = useState<
     Record<string, Array<{ name: string; number: string }>>
   >({});
+
+  const [isPelikoneImportVisible, setIsPelikoneImportVisible] = useState<boolean>(false);
+  const [pelikoneUrlInput, setPelikoneUrlInput] = useState<string>('');
+  const [pelikoneHistory, setPelikoneHistory] = useState<PelikoneHistoryEntry[]>([]);
+  const [isPelikoneLoading, setIsPelikoneLoading] = useState<boolean>(false);
+  const [pelikoneResult, setPelikoneResult] = useState<{
+    teamName: string;
+    players: Array<{ name: string; number: string }>;
+  } | null>(null);
   const [activeWriterName, setActiveWriterName] = useState<string>('');
   const [claimedAtIso, setClaimedAtIso] = useState<string>('');
   const [isAdminStateLoading, setIsAdminStateLoading] = useState<boolean>(false);
@@ -193,6 +242,16 @@ export default function GameSetupScreen() {
       awayCount: awayPlayers.length,
     });
   }, [homeTeamName, awayTeamName, homePlayers.length, awayPlayers.length]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PELIKONE_HISTORY_KEY).then((val) => {
+      if (!val) return;
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) setPelikoneHistory(parsed.slice(0, PELIKONE_HISTORY_MAX));
+      } catch { /* ignore */ }
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -395,6 +454,76 @@ export default function GameSetupScreen() {
     setIsCsvLoading(false);
     setCsvTeams([]);
     setCsvRosterByTeam({});
+  };
+
+  const closePelikoneImport = () => {
+    setIsPelikoneImportVisible(false);
+    setIsPelikoneLoading(false);
+    setPelikoneResult(null);
+    setPelikoneUrlInput('');
+  };
+
+  const handleFetchPelikone = async () => {
+    const url = pelikoneUrlInput.trim();
+    if (!url) {
+      Alert.alert('Missing URL', 'Paste a Pelikone team card URL to import.');
+      return;
+    }
+
+    try {
+      setIsPelikoneLoading(true);
+      setPelikoneResult(null);
+
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Request failed (${res.status})`);
+      }
+
+      const html = await res.text();
+      const { teamName, players } = parsePelikoneHtml(html);
+
+      if (players.length === 0) {
+        Alert.alert('No players found', 'No players could be extracted from that URL.');
+        return;
+      }
+
+      const newEntry: PelikoneHistoryEntry = { url, teamName };
+      const updatedHistory = [
+        newEntry,
+        ...pelikoneHistory.filter((e) => e.url !== url),
+      ].slice(0, PELIKONE_HISTORY_MAX);
+      setPelikoneHistory(updatedHistory);
+      void AsyncStorage.setItem(PELIKONE_HISTORY_KEY, JSON.stringify(updatedHistory)).catch(() => {});
+      setPelikoneResult({ teamName, players });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Import failed', message);
+    } finally {
+      setIsPelikoneLoading(false);
+    }
+  };
+
+  const confirmImportPelikone = () => {
+    if (!pelikoneResult) return;
+    const { teamName, players } = pelikoneResult;
+    const side = activeRosterTab;
+
+    Alert.alert(
+      'Import roster?',
+      `Import "${teamName}" (${players.length} players) into ${side.toUpperCase()} and replace the current roster?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          style: 'default',
+          onPress: () => {
+            replaceRosterForSide(side, { teamName, players });
+            resetPlayerForm();
+            closePelikoneImport();
+          },
+        },
+      ],
+    );
   };
 
   const handleFetchCsv = async () => {
@@ -721,6 +850,15 @@ export default function GameSetupScreen() {
           <Text style={styles.importText}>IMPORT ROSTER (CSV)</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.importBtn, styles.importBtnPelikone]}
+          testID="import-pelikone-button"
+          onPress={() => setIsPelikoneImportVisible(true)}
+        >
+          <Upload size={18} color={Colors.textSecondary} />
+          <Text style={styles.importText}>IMPORT FROM PELIKONE</Text>
+        </TouchableOpacity>
+
         <Text style={styles.sectionTitle}>Stream Connection</Text>
         <View style={styles.streamCard}>
           <Text style={styles.inputLabel}>SERVICE URL</Text>
@@ -955,6 +1093,98 @@ export default function GameSetupScreen() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
+              </View>
+            ) : null}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={isPelikoneImportVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closePelikoneImport}
+      >
+        <Pressable style={styles.confirmOverlay} onPress={closePelikoneImport} testID="pelikone-import-overlay">
+          <Pressable style={styles.csvCard} onPress={() => {}} testID="pelikone-import-card">
+            <Text style={styles.confirmTitle}>Import from Pelikone</Text>
+            <Text style={styles.confirmMessage}>
+              Paste the team card URL from ultimate.fi/pelikone (e.g. ?view=teamcard&team=…).
+            </Text>
+
+            <Text style={styles.inputLabel}>PELIKONE URL</Text>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                placeholder="https://ultimate.fi/pelikone/?view=teamcard&team=…"
+                placeholderTextColor={Colors.textTertiary}
+                value={pelikoneUrlInput}
+                onChangeText={setPelikoneUrlInput}
+                autoCapitalize="none"
+                autoCorrect={false}
+                testID="pelikone-url-input"
+              />
+            </View>
+
+            {pelikoneHistory.length > 0 ? (
+              <View style={styles.csvRecentSection}>
+                <Text style={styles.csvRecentLabel}>Recent teams</Text>
+                <View style={styles.csvRecentChips}>
+                  {pelikoneHistory.map((entry) => (
+                    <TouchableOpacity
+                      key={entry.url}
+                      style={styles.csvRecentChip}
+                      activeOpacity={0.85}
+                      onPress={() => setPelikoneUrlInput(entry.url)}
+                      testID={`pelikone-history-${entry.url}`}
+                    >
+                      <Text style={styles.csvRecentChipText} numberOfLines={1}>
+                        {entry.teamName}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.csvActions}>
+              <TouchableOpacity
+                style={styles.confirmBackBtn}
+                onPress={closePelikoneImport}
+                testID="pelikone-import-cancel"
+              >
+                <Text style={styles.confirmBackText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmContinueBtn}
+                onPress={handleFetchPelikone}
+                disabled={isPelikoneLoading}
+                testID="pelikone-import-fetch"
+              >
+                {isPelikoneLoading ? (
+                  <ActivityIndicator color={Colors.white} />
+                ) : (
+                  <Text style={styles.confirmContinueText}>Fetch</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {pelikoneResult ? (
+              <View style={styles.csvTeamSection}>
+                <Text style={styles.csvSectionTitle}>Found team</Text>
+                <TouchableOpacity
+                  style={styles.csvTeamRow}
+                  onPress={confirmImportPelikone}
+                  testID="pelikone-team-result"
+                >
+                  <View style={styles.csvTeamMeta}>
+                    <Text style={styles.csvTeamName}>{pelikoneResult.teamName}</Text>
+                    <Text style={styles.csvTeamCount}>
+                      {pelikoneResult.players.length.toString()} players
+                    </Text>
+                  </View>
+                  <Text style={styles.csvImportHint}>Import to {activeRosterTab.toUpperCase()}</Text>
+                </TouchableOpacity>
               </View>
             ) : null}
           </Pressable>
@@ -1198,6 +1428,9 @@ const styles = StyleSheet.create({
     fontWeight: '600' as const,
     color: Colors.textSecondary,
     letterSpacing: 0.5,
+  },
+  importBtnPelikone: {
+    marginTop: 10,
   },
   bottomSpacer: {
     height: 20,
