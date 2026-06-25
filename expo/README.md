@@ -1,82 +1,134 @@
-## Upsi - Ultimate Point Streamer
+# Upsi – Ultimate Point Streamer
 
-Upsi is a cross-platform (iOS/Android/Web) app for setting up a match, tracking points live, and reviewing game logs and history.
+Cross-platform iOS/Android/Web app for setting up a match, tracking points live, and streaming live scores to an OBS overlay.
 
-### Key features
+---
 
-- **New game flow**: set teams, colors, and game settings
-- **Live scoring**: track points as the match progresses
-- **Game log**: record events/points and review them during the game
-- **History**: keep a local list of past games and view details
+## Features
 
-### Tech stack
+- **Game setup:** team names, player rosters (manual or CSV import), backend stream configuration
+- **Live scoring:** game clock, +1 scoring per team, goal details (scorer/assist), timeouts, halftime
+- **Live sync:** posts goals and state to [pointtracker-service-ultimate](https://github.com/jarmoasu/pointtracker-service-ultimate) for OBS overlay use
+- **Game log:** chronological event log with edit/delete, visible during and after the game
+- **History:** local list of past games with stats
 
-- **Expo + React Native** (SDK 54)
-- **Expo Router** (file-based routing)
-- **TypeScript**
-- **React Query** (data fetching/caching patterns)
-- **AsyncStorage** (local persistence)
-- **Lucide** icons
+---
 
-### Getting started (local development)
+## Tech stack
 
-#### Prerequisites
+| Layer | Choice |
+|---|---|
+| Framework | Expo (SDK 54) + React Native 0.81 |
+| Routing | Expo Router (file-based) |
+| Language | TypeScript |
+| State | Zustand |
+| Storage | AsyncStorage (local, no account required) |
+| HTTP | Native `fetch()` |
+| Icons | Lucide React Native |
 
-- **Node.js**
-- **Bun** (`bun --version`)
+---
 
-#### Install
+## Getting started
+
+### Prerequisites
+
+- **Node.js** ≥ 20
+- **npm** or **bun**
+- **Expo Go** app on your device (for quick testing), or a simulator/emulator
+
+### Install
 
 ```bash
+npm install
+# or
 bun install
 ```
 
-#### Run on device / simulator
+### Run
 
 ```bash
-bun run start
+# iOS / Android (via Expo Go or simulator)
+npm run start
+
+# With tunnel (useful for physical devices on different networks)
+npm run start-tunnel
+
+# Web
+npm run start-web
 ```
 
-Then open the app using an Expo-compatible client (or a simulator) and follow the QR / dev server instructions shown in the terminal.
+Scan the QR code with Expo Go, or press `i` / `a` to open in a simulator.
 
-#### Run on web
+---
 
-```bash
-bun run start-web
-```
+## Backend (live scoring sync)
 
-For more verbose web debugging:
+The app can optionally sync live scores to [pointtracker-service-ultimate](https://github.com/jarmoasu/pointtracker-service-ultimate), a self-hosted backend that serves an OBS Browser Source overlay.
 
-```bash
-bun run start-web-dev
-```
+To connect:
+1. Deploy the backend (see its README — one-click Render blueprint included)
+2. In the app's **Game Setup** screen, enter your backend URL and claim code
+3. The app will obtain a write token and sync goals automatically
 
-### Scripts
+The app works fully offline without a backend — sync is optional and fire-and-forget.
 
-- **start**: start the dev server (tunnel enabled)
-- **start-web**: start the web dev server (tunnel enabled)
-- **start-web-dev**: start web with extra Expo debug logging
-- **lint**: run Expo lint
+---
 
-### Project structure (high level)
+## Project structure
 
 ```
 app/
-  _layout.tsx            # Root navigation (Stack) + providers
-  index.tsx              # Home screen
-  game-setup.tsx         # New game setup
-  live-scoring.tsx       # Live scoring screen
-  goal-details.tsx       # Goal/point details (modal)
-  game-log.tsx           # In-game log
-  past-game-log.tsx      # Past game log viewer
-  game-history.tsx       # History list
+  _layout.tsx          # Root navigation (Stack) + providers
+  index.tsx            # Home screen / game list
+  game-setup.tsx       # New game setup (teams, roster, backend config)
+  live-scoring.tsx     # Live scoring screen
+  goal-details.tsx     # Scorer/assist modal
+  game-log.tsx         # In-game event log
+  past-game-log.tsx    # Past game log viewer
+  game-history.tsx     # All past games list
 
-assets/images/           # Icons and images
-constants/               # Theme/colors/etc.
-types/                   # Shared TS types
+assets/images/         # App icons and images
+constants/             # Theme colours
+types/                 # Shared TypeScript types
+context/               # React context (game setup state)
 ```
 
-### Notes
+---
 
-- **Data storage**: game history is currently stored **locally** (no backend).
-- **Generated origins**: this repo includes tooling from Rork (the scripts use `bunx rork start` under the hood).
+## Building for distribution
+
+Builds are handled by [EAS](https://expo.dev/eas):
+
+```bash
+# Install EAS CLI
+npm install -g eas-cli
+
+# Log in to your Expo account
+eas login
+
+# Build for iOS (requires Apple Developer account)
+eas build --platform ios --profile production
+
+# Build for Android
+eas build --platform android --profile production
+```
+
+Update `eas.json` and the bundle identifiers in `app.json` (`ios.bundleIdentifier`, `android.package`) to match your own app/account before building.
+
+---
+
+## Scripts
+
+| Script | Description |
+|---|---|
+| `npm run start` | Start Expo dev server (LAN) |
+| `npm run start-tunnel` | Start with tunnel (useful for physical devices) |
+| `npm run start-web` | Start web dev server |
+| `npm run start-web-dev` | Web dev server with verbose Expo debug logging |
+| `npm run lint` | Run Expo ESLint |
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
