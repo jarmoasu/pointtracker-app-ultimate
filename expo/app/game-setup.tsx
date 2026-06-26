@@ -17,8 +17,6 @@ import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
 import {
-  Wifi,
-  KeyRound,
   Play,
   UserPlus,
   Upload,
@@ -32,12 +30,6 @@ import { Player } from '@/types/game';
 import { useGameSetup, TeamSide } from '@/app/game-setup-context';
 
 type CsvRosterRow = { teamName: string; playerName: string; jerseyNumber: string };
-type StreamAdminState = {
-  writer?: {
-    activeWriterName?: string | null;
-    claimedAt?: string | null;
-  } | null;
-};
 
 const PELIKONE_HISTORY_KEY = 'pointtracker.pelikoneHistory.v1';
 const PELIKONE_HISTORY_MAX = 5;
@@ -47,8 +39,6 @@ const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
 const CSV_URL_HISTORY_KEY = 'pointtracker.csvUrlHistory.v1';
 const CSV_TEST_AND_EXAMPLE_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv';
-
-const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
 function decodeHtmlEntities(str: string): string {
   return str
@@ -183,32 +173,20 @@ function parseRosterCsv(text: string): {
 export default function GameSetupScreen() {
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const [claimCode, setClaimCode] = useState<string>('');
-  const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const {
-    backendBaseUrl,
-    writeToken,
-    deviceName,
-    homeTeam,
-    awayTeam,
     homeTeamName,
     awayTeamName,
     homePlayers,
     awayPlayers,
-    setBackendBaseUrl,
-    setWriteToken,
-    setDeviceName,
     setHomeTeamName,
     setAwayTeamName,
     addPlayer,
     updatePlayer,
     removePlayer,
-    resetLiveGame,
     resetRoster,
     replaceRosterForSide,
   } = useGameSetup();
   const [activeRosterTab, setActiveRosterTab] = useState<TeamSide>('home');
-  const [isStartConfirmVisible, setIsStartConfirmVisible] = useState<boolean>(false);
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [playerNumberInput, setPlayerNumberInput] = useState<string>('');
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
@@ -230,9 +208,6 @@ export default function GameSetupScreen() {
     teamName: string;
     players: Array<{ name: string; number: string }>;
   } | null>(null);
-  const [activeWriterName, setActiveWriterName] = useState<string>('');
-  const [claimedAtIso, setClaimedAtIso] = useState<string>('');
-  const [isAdminStateLoading, setIsAdminStateLoading] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('GameSetup initial teams', {
@@ -377,78 +352,6 @@ export default function GameSetupScreen() {
     ]);
   };
 
-  const syncTeamsToBackend = async () => {
-    const token = writeToken.trim();
-    if (!token) {
-      console.log('Teams sync skipped (missing write token)');
-      return;
-    }
-
-    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
-      /\/+$/,
-      '',
-    );
-    const trimmedDeviceName = deviceName.trim();
-    const payload = {
-      homeTeamName: homeTeam.name,
-      awayTeamName: awayTeam.name,
-    };
-
-    try {
-      const res = await fetch(`${normalizedBaseUrl}/teams`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-          'X-Write-Token': token,
-          ...(trimmedDeviceName ? { 'X-Device-Name': trimmedDeviceName } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!res.ok) {
-        let message = `Request failed (${res.status})`;
-        try {
-          const raw = await res.text();
-          try {
-            const errorPayload = JSON.parse(raw);
-            if (typeof errorPayload?.message === 'string') message = errorPayload.message;
-            if (typeof errorPayload?.error === 'string') message = errorPayload.error;
-          } catch {
-            const trimmed = raw.trim();
-            if (trimmed) message = trimmed;
-          }
-        } catch {
-          // ignore
-        }
-        throw new Error(message);
-      }
-
-      console.log('Teams synced', payload);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
-      console.log('Teams sync failed', { message, payload });
-    }
-  };
-
-  const handleStartPress = () => {
-    console.log('GameSetup start pressed');
-    setIsStartConfirmVisible(true);
-  };
-
-  const handleConfirmContinue = () => {
-    console.log('GameSetup confirm continue - starting new game');
-    void syncTeamsToBackend();
-    resetLiveGame();
-    setIsStartConfirmVisible(false);
-    router.push('/live-scoring' as Href);
-  };
-
-  const handleConfirmBack = () => {
-    console.log('GameSetup confirm back to setup');
-    setIsStartConfirmVisible(false);
-  };
-
   const closeCsvImport = () => {
     setIsCsvImportVisible(false);
     setIsCsvLoading(false);
@@ -583,99 +486,6 @@ export default function GameSetupScreen() {
         },
       ],
     );
-  };
-
-  const fetchStreamReservationInfo = async () => {
-    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
-      /\/+$/,
-      '',
-    );
-
-    try {
-      setIsAdminStateLoading(true);
-      const res = await fetch(`${normalizedBaseUrl}/admin/state`);
-      if (!res.ok) {
-        throw new Error(`Request failed (${res.status})`);
-      }
-
-      const payload = (await res.json()) as StreamAdminState;
-      const writerName = payload?.writer?.activeWriterName?.trim() ?? '';
-      const claimedAt = payload?.writer?.claimedAt?.trim() ?? '';
-      setActiveWriterName(writerName);
-      setClaimedAtIso(claimedAt);
-    } catch {
-      setActiveWriterName('');
-      setClaimedAtIso('');
-    } finally {
-      setIsAdminStateLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void fetchStreamReservationInfo();
-  }, [backendBaseUrl]);
-
-  const handleClaimStream = async () => {
-    const trimmedClaimCode = claimCode.trim();
-    if (!trimmedClaimCode) {
-      Alert.alert('Missing claim code', 'Please enter a claim code.');
-      return;
-    }
-
-    const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
-      /\/+$/,
-      '',
-    );
-    const trimmedDeviceName = deviceName.trim();
-    if (!trimmedDeviceName) {
-      Alert.alert('Missing device name', 'Please enter a device name.');
-      return;
-    }
-
-    try {
-      setIsClaiming(true);
-
-      const res = await fetch(`${normalizedBaseUrl}/claim`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          claimCode: trimmedClaimCode,
-          deviceName: trimmedDeviceName,
-        }),
-      });
-
-      let payload: any = null;
-      try {
-        payload = await res.json();
-      } catch {
-        payload = null;
-      }
-
-      if (!res.ok) {
-        const message =
-          typeof payload?.message === 'string'
-            ? payload.message
-            : typeof payload?.error === 'string'
-              ? payload.error
-              : `Request failed (${res.status})`;
-        throw new Error(message);
-      }
-
-      const nextWriteToken = typeof payload?.writeToken === 'string' ? payload.writeToken.trim() : '';
-      if (!nextWriteToken) {
-        throw new Error('No writeToken returned from server.');
-      }
-
-      setWriteToken(nextWriteToken);
-      setClaimCode('');
-      void fetchStreamReservationInfo();
-      Alert.alert('Stream claimed', 'Write token saved on this device.');
-    } catch (e) {
-      const message = e instanceof Error ? e.message : 'Unknown error';
-      Alert.alert('Claim failed', message);
-    } finally {
-      setIsClaiming(false);
-    }
   };
 
   return (
@@ -859,91 +669,6 @@ export default function GameSetupScreen() {
           <Text style={styles.importText}>IMPORT FROM PELIKONE</Text>
         </TouchableOpacity>
 
-        <Text style={styles.sectionTitle}>Stream Connection</Text>
-        <View style={styles.streamCard}>
-          <Text style={styles.inputLabel}>SERVICE URL</Text>
-          <View style={styles.inputRow}>
-            <Wifi size={18} color={Colors.textTertiary} />
-            <TextInput
-              style={styles.input}
-              placeholder={DEFAULT_BACKEND_BASE_URL}
-              placeholderTextColor={Colors.textTertiary}
-              value={backendBaseUrl}
-              onChangeText={setBackendBaseUrl}
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="url"
-              testID="backend-url-input"
-            />
-          </View>
-
-          <Text style={styles.inputLabel}>YOUR (NICK) NAME</Text>
-          <View style={styles.inputRow}>
-            <Wifi size={18} color={Colors.textTertiary} />
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. Alex"
-              placeholderTextColor={Colors.textTertiary}
-              value={deviceName}
-              onChangeText={setDeviceName}
-              autoCapitalize="none"
-              autoCorrect={false}
-              testID="device-name-input"
-            />
-          </View>
-
-          <Text style={styles.inputLabel}>CLAIM CODE</Text>
-          <View style={styles.inputRow}>
-            <KeyRound size={18} color={Colors.textTertiary} />
-            <TextInput
-              style={styles.input}
-              placeholder="Enter claim code"
-              placeholderTextColor={Colors.textTertiary}
-              secureTextEntry
-              value={claimCode}
-              onChangeText={setClaimCode}
-              testID="claim-code-input"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[styles.claimStreamButton, isClaiming ? styles.claimStreamButtonDisabled : null]}
-            activeOpacity={0.85}
-            onPress={handleClaimStream}
-            disabled={isClaiming}
-            testID="claim-stream-info-button"
-          >
-            {isClaiming ? (
-              <ActivityIndicator color={Colors.white} />
-            ) : (
-              <Text style={styles.claimStreamText}>CLAIM STREAM</Text>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.streamReservationInfo}>
-            {isAdminStateLoading ? (
-              <Text style={styles.streamReservationText}>Checking stream reservation…</Text>
-            ) : activeWriterName ? (
-              <>
-                <Text style={styles.streamReservationText}>
-                  Reserved by: <Text style={styles.streamReservationValue}>{activeWriterName}</Text>
-                </Text>
-                {claimedAtIso ? (
-                  <Text style={styles.streamReservationText}>
-                    Claimed at:{' '}
-                    <Text style={styles.streamReservationValue}>
-                      {new Date(claimedAtIso).toLocaleString()}
-                    </Text>
-                  </Text>
-                ) : null}
-              </>
-            ) : (
-              <Text style={styles.streamReservationText}>No active stream reservation info.</Text>
-            )}
-          </View>
-
-        </View>
-
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
@@ -951,40 +676,13 @@ export default function GameSetupScreen() {
         <TouchableOpacity
           style={styles.startBtn}
           activeOpacity={0.85}
-          onPress={handleStartPress}
+          onPress={() => router.push('/stream-choice' as Href)}
           testID="start-match-button"
         >
           <Play size={20} color={Colors.white} fill={Colors.white} />
-          <Text style={styles.startBtnText}>START MATCH</Text>
+          <Text style={styles.startBtnText}>CONTINUE</Text>
         </TouchableOpacity>
       </View>
-
-      {isStartConfirmVisible && (
-        <View style={styles.confirmOverlay} testID="start-confirm-overlay">
-          <View style={styles.confirmCard}>
-            <Text style={styles.confirmTitle}>Start Game</Text>
-            <Text style={styles.confirmMessage}>
-              Are you sure you want to start the game? The game clock will begin when you press Continue.
-            </Text>
-            <View style={styles.confirmActions}>
-              <TouchableOpacity
-                style={styles.confirmBackBtn}
-                onPress={handleConfirmBack}
-                testID="start-confirm-back"
-              >
-                <Text style={styles.confirmBackText}>Back to setup</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.confirmContinueBtn}
-                onPress={handleConfirmContinue}
-                testID="start-confirm-continue"
-              >
-                <Text style={styles.confirmContinueText}>Continue</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      )}
 
       <Modal
         visible={isCsvImportVisible}
@@ -1212,13 +910,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 14,
   },
-  streamCard: {
-    backgroundColor: Colors.white,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-  },
   inputLabel: {
     fontSize: 11,
     fontWeight: '700' as const,
@@ -1243,46 +934,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     color: Colors.dark,
-  },
-  claimStreamButton: {
-    backgroundColor: Colors.dark,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  claimStreamButtonDisabled: {
-    opacity: 0.7,
-  },
-  claimStreamText: {
-    fontSize: 12,
-    fontWeight: '700' as const,
-    color: Colors.white,
-    letterSpacing: 0.8,
-  },
-  writeTokenHint: {
-    marginTop: 10,
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-  },
-  streamReservationInfo: {
-    marginTop: 12,
-    backgroundColor: Colors.gray100,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    gap: 4,
-  },
-  streamReservationText: {
-    fontSize: 12,
-    fontWeight: '600' as const,
-    color: Colors.textSecondary,
-  },
-  streamReservationValue: {
-    color: Colors.dark,
-    fontWeight: '700' as const,
   },
   matchupRow: {
     flexDirection: 'row',

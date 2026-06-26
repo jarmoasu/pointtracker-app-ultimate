@@ -56,6 +56,24 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="stream-choice"
+        options={{
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="stream-setup"
+        options={{
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
+        name="pre-start"
+        options={{
+          headerShown: true,
+        }}
+      />
+      <Stack.Screen
         name="live-scoring"
         options={{
           headerShown: true,
