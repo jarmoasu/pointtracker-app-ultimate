@@ -18,10 +18,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
 
+const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+
 export default function LiveScoringScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const {
+    backendBaseUrl,
+    writeToken,
+    deviceName,
     homeTeam,
     awayTeam,
     homeScore,
@@ -152,6 +157,53 @@ export default function LiveScoringScreen() {
     [getTeamTimeoutCounts, awayTeam.id],
   );
 
+  const syncClockStopToBackend = useCallback(
+    async (finalElapsedSeconds: number) => {
+      const token = writeToken.trim();
+      if (!token) return;
+
+      const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+        /\/+$/,
+        '',
+      );
+      const trimmedDeviceName = deviceName.trim();
+      const payload = { gameClockSeconds: Math.max(0, Math.floor(finalElapsedSeconds)), running: false };
+
+      try {
+        const res = await fetch(`${normalizedBaseUrl}/clock`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            'X-Write-Token': token,
+            ...(trimmedDeviceName ? { 'X-Device-Name': trimmedDeviceName } : {}),
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!res.ok) {
+          let message = `Request failed (${res.status})`;
+          try {
+            const raw = await res.text();
+            try {
+              const errorPayload = JSON.parse(raw);
+              if (typeof errorPayload?.message === 'string') message = errorPayload.message;
+              if (typeof errorPayload?.error === 'string') message = errorPayload.error;
+            } catch {
+              const trimmed = raw.trim();
+              if (trimmed) message = trimmed;
+            }
+          } catch { /* ignore */ }
+          throw new Error(message);
+        }
+      } catch (e) {
+        const message = e instanceof Error ? e.message : 'Unknown error';
+        console.log('Clock stop sync failed', { message, payload });
+      }
+    },
+    [backendBaseUrl, deviceName, writeToken],
+  );
+
   const handleEndGamePress = useCallback(() => {
     if (activeTimeoutEvent || activeHalftimeEvent) {
       console.log('End game blocked - timeout or halftime in progress');
@@ -172,12 +224,13 @@ export default function LiveScoringScreen() {
           style: 'destructive',
           onPress: () => {
             console.log('End game confirmed - moving to history');
+            void syncClockStopToBackend(elapsedSeconds);
             endGame();
           },
         },
       ],
     );
-  }, [activeHalftimeEvent, activeTimeoutEvent, endGame]);
+  }, [activeHalftimeEvent, activeTimeoutEvent, elapsedSeconds, endGame, syncClockStopToBackend]);
 
   useEffect(() => {
     console.log('Live scoring clock effect', { isClockRunning, isGameEnded });
