@@ -77,12 +77,37 @@ export default function LiveScoringScreen() {
     return Math.max(0, elapsedSeconds - activeHalftimeEvent.gameClockSeconds);
   }, [activeHalftimeEvent, elapsedSeconds]);
 
+  // Any timeout started since the last goal pauses "time between points":
+  // its duration (ongoing if still active, otherwise its recorded end - start)
+  // is subtracted from the raw elapsed-since-goal figure. Because an active
+  // timeout's own duration grows in lockstep with `elapsedSeconds`, the net
+  // result stays frozen for as long as it runs, then resumes from where it
+  // left off once the timeout ends.
+  const timeoutSecondsSinceLastGoal = useMemo(() => {
+    if (!lastGoalEvent || typeof lastGoalEvent.gameClockSeconds !== 'number') {
+      return 0;
+    }
+    const goalSeconds = lastGoalEvent.gameClockSeconds;
+    return liveEvents.reduce((sum, event) => {
+      if (event.type !== 'timeout' || typeof event.gameClockSeconds !== 'number') return sum;
+      if (event.gameClockSeconds < goalSeconds) return sum;
+      if (event.isTimeoutActive) {
+        return sum + Math.max(0, elapsedSeconds - event.gameClockSeconds);
+      }
+      if (typeof event.timeoutEndSeconds === 'number') {
+        return sum + Math.max(0, event.timeoutEndSeconds - event.gameClockSeconds);
+      }
+      return sum;
+    }, 0);
+  }, [liveEvents, lastGoalEvent, elapsedSeconds]);
+
   const timeSinceLastGoalSeconds = useMemo(() => {
     if (!lastGoalEvent || typeof lastGoalEvent.gameClockSeconds !== 'number') {
       return 0;
     }
-    return Math.max(0, elapsedSeconds - lastGoalEvent.gameClockSeconds);
-  }, [lastGoalEvent, elapsedSeconds]);
+    const raw = elapsedSeconds - lastGoalEvent.gameClockSeconds;
+    return Math.max(0, raw - timeoutSecondsSinceLastGoal);
+  }, [lastGoalEvent, elapsedSeconds, timeoutSecondsSinceLastGoal]);
 
   // Reappears for every new goal (even if the previous one was dismissed)
   // since it's keyed off the latest goal event's id, and hides once that
