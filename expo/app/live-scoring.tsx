@@ -46,6 +46,7 @@ export default function LiveScoringScreen() {
     side: 'home' | 'away';
     currentTime: string;
   } | null>(null);
+  const [dismissedGoalEventId, setDismissedGoalEventId] = useState<string | null>(null);
 
   const isHomeTimeoutActive = activeTimeoutEvent?.teamId === homeTeam.id;
   const isAwayTimeoutActive = activeTimeoutEvent?.teamId === awayTeam.id;
@@ -75,6 +76,24 @@ export default function LiveScoringScreen() {
     }
     return Math.max(0, elapsedSeconds - activeHalftimeEvent.gameClockSeconds);
   }, [activeHalftimeEvent, elapsedSeconds]);
+
+  const timeSinceLastGoalSeconds = useMemo(() => {
+    if (!lastGoalEvent || typeof lastGoalEvent.gameClockSeconds !== 'number') {
+      return 0;
+    }
+    return Math.max(0, elapsedSeconds - lastGoalEvent.gameClockSeconds);
+  }, [lastGoalEvent, elapsedSeconds]);
+
+  // Reappears for every new goal (even if the previous one was dismissed)
+  // since it's keyed off the latest goal event's id, and hides once that
+  // specific goal has been dismissed.
+  const isTimeBetweenPointsVisible =
+    !!lastGoalEvent && !isGameEnded && lastGoalEvent.id !== dismissedGoalEventId;
+
+  const handleDismissTimeBetweenPoints = useCallback(() => {
+    if (!lastGoalEvent) return;
+    setDismissedGoalEventId(lastGoalEvent.id);
+  }, [lastGoalEvent]);
 
   // liveEvents is newest-first. A timeout's index greater than the halftime
   // event's index happened before it (period 1); a smaller index happened
@@ -336,6 +355,23 @@ export default function LiveScoringScreen() {
             </View>
           </View>
         </View>
+
+        {isTimeBetweenPointsVisible ? (
+          <TouchableOpacity
+            style={styles.timeBetweenPointsBtn}
+            activeOpacity={0.8}
+            onPress={handleDismissTimeBetweenPoints}
+            testID="time-between-points-button"
+          >
+            <View style={styles.timeBetweenPointsRow}>
+              <Text style={styles.timeBetweenPointsLabel}>Time between points</Text>
+              <Text style={styles.timeBetweenPointsValue}>
+                {formatClock(timeSinceLastGoalSeconds)}
+              </Text>
+            </View>
+            <Text style={styles.timeBetweenPointsHint}>Press and I&apos;ll disappear</Text>
+          </TouchableOpacity>
+        ) : null}
 
         <TouchableOpacity
           style={[
@@ -662,6 +698,40 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     color: Colors.textTertiary,
     marginHorizontal: 12,
+  },
+  timeBetweenPointsBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+    backgroundColor: Colors.primaryFaded,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.primaryLight,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  timeBetweenPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  timeBetweenPointsLabel: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.primaryDark,
+    letterSpacing: 0.3,
+  },
+  timeBetweenPointsValue: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: Colors.primaryDark,
+  },
+  timeBetweenPointsHint: {
+    fontSize: 10,
+    fontWeight: '500' as const,
+    color: Colors.textSecondary,
+    fontStyle: 'italic',
   },
   homeScoreBtn: {
     flexDirection: 'row',
