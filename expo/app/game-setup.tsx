@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Pressable,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
@@ -204,6 +205,8 @@ export default function GameSetupScreen() {
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [playerNumberInput, setPlayerNumberInput] = useState<string>('');
   const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const editPlayerCardY = useRef<number>(0);
 
   const [isCsvImportVisible, setIsCsvImportVisible] = useState<boolean>(false);
   const [csvUrlInput, setCsvUrlInput] = useState<string>('');
@@ -320,6 +323,9 @@ export default function GameSetupScreen() {
     setPlayerNameInput(player.name);
     setPlayerNumberInput(player.number);
     setEditingPlayerId(player.id);
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: editPlayerCardY.current, animated: true });
+    }, 50);
   };
 
   const handleSavePlayer = () => {
@@ -545,6 +551,7 @@ export default function GameSetupScreen() {
         }}
       />
       <ScrollView
+        ref={scrollViewRef}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -619,7 +626,10 @@ export default function GameSetupScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.inlinePlayerCard}>
+        <View
+          style={styles.inlinePlayerCard}
+          onLayout={(e) => { editPlayerCardY.current = e.nativeEvent.layout.y; }}
+        >
           <Text style={styles.inputLabel}>PLAYER NAME</Text>
           <View style={styles.inputRow}>
             <TextInput
@@ -628,6 +638,8 @@ export default function GameSetupScreen() {
               placeholderTextColor={Colors.textTertiary}
               value={playerNameInput}
               onChangeText={setPlayerNameInput}
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
               testID="player-name-input"
             />
           </View>
@@ -641,6 +653,8 @@ export default function GameSetupScreen() {
               value={playerNumberInput}
               onChangeText={setPlayerNumberInput}
               keyboardType="number-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => Keyboard.dismiss()}
               testID="player-number-input"
             />
           </View>

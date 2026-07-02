@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Search, Check, Save, Trash2, Ban, Plus } from 'lucide-react-native';
@@ -388,6 +389,7 @@ export default function GoalDetailsScreen() {
                   Alert.alert('Invalid selection', 'Scorer cannot be the same as assist.');
                   return;
                 }
+                Keyboard.dismiss();
                 setSelectedAssist(player.id);
                 scrollToScorer();
               }}
@@ -432,6 +434,7 @@ export default function GoalDetailsScreen() {
         <TouchableOpacity
           style={[styles.noAssistRow, selectedAssist === 'none' && styles.noAssistRowSelected]}
           onPress={() => {
+            Keyboard.dismiss();
             setSelectedAssist('none');
             scrollToScorer();
           }}
@@ -524,6 +527,7 @@ export default function GoalDetailsScreen() {
                   Alert.alert('Invalid selection', 'Assist cannot be the same as scorer.');
                   return;
                 }
+                Keyboard.dismiss();
                 setSelectedScorer(player.id);
               }}
               activeOpacity={0.7}
