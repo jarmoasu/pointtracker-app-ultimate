@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -39,6 +39,20 @@ const CSV_LAST_SUCCESSFUL_URL_KEY = 'pointtracker.csvLastSuccessfulUrl.v1';
 const CSV_URL_HISTORY_KEY = 'pointtracker.csvUrlHistory.v1';
 const CSV_TEST_AND_EXAMPLE_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vQtm2zf2JpJ4saXJXhkMtVf9g73WUFMzt0LgE6fyxd4-mD-2Pca8Z8UAXPasMJwHYYX0joGfTfuRAw_/pub?output=csv';
+
+function findDuplicateJerseyNumbers(players: Player[]): Set<string> {
+  const counts = new Map<string, number>();
+  players.forEach((player) => {
+    const number = player.number.trim();
+    if (!number) return;
+    counts.set(number, (counts.get(number) ?? 0) + 1);
+  });
+  return new Set(
+    Array.from(counts.entries())
+      .filter(([, count]) => count > 1)
+      .map(([number]) => number)
+  );
+}
 
 function decodeHtmlEntities(str: string): string {
   return str
@@ -272,6 +286,11 @@ export default function GameSetupScreen() {
 
   const currentPlayers = activeRosterTab === 'home' ? homePlayers : awayPlayers;
 
+  const duplicateJerseyNumbers = useMemo(
+    () => findDuplicateJerseyNumbers(currentPlayers),
+    [currentPlayers]
+  );
+
   const resetPlayerForm = () => {
     setPlayerNameInput('');
     setPlayerNumberInput('');
@@ -335,6 +354,29 @@ export default function GameSetupScreen() {
       number: trimmedNumber,
     });
     resetPlayerForm();
+  };
+
+  const handleContinue = () => {
+    const hasDuplicates =
+      findDuplicateJerseyNumbers(homePlayers).size > 0 ||
+      findDuplicateJerseyNumbers(awayPlayers).size > 0;
+
+    if (!hasDuplicates) {
+      router.push('/stream-choice' as Href);
+      return;
+    }
+
+    Alert.alert(
+      'Duplicate jersey numbers',
+      'Some players share the same jersey number. Continue anyway?',
+      [
+        { text: 'Go Back', style: 'cancel' },
+        {
+          text: 'Continue',
+          onPress: () => router.push('/stream-choice' as Href),
+        },
+      ]
+    );
   };
 
   const handleDeletePlayer = (playerId: string) => {
@@ -626,9 +668,15 @@ export default function GameSetupScreen() {
           </View>
         </View>
 
-        {currentPlayers.map((player) => (
-          <View key={player.id} style={styles.playerRow}>
-            <View style={styles.playerNumber}>
+        {currentPlayers.map((player) => {
+          const hasDuplicateNumber = duplicateJerseyNumbers.has(player.number.trim());
+          return (
+          <View
+            key={player.id}
+            style={[styles.playerRow, hasDuplicateNumber && styles.playerRowDuplicate]}
+            testID={hasDuplicateNumber ? `player-row-duplicate-${player.id}` : undefined}
+          >
+            <View style={[styles.playerNumber, hasDuplicateNumber && styles.playerNumberDuplicate]}>
               <Text style={styles.playerNumberText}>{player.number}</Text>
             </View>
             <Text style={styles.playerName}>{player.name}</Text>
@@ -649,7 +697,8 @@ export default function GameSetupScreen() {
               </TouchableOpacity>
             </View>
           </View>
-        ))}
+          );
+        })}
 
         <TouchableOpacity
           style={styles.importBtn}
@@ -676,7 +725,7 @@ export default function GameSetupScreen() {
         <TouchableOpacity
           style={styles.startBtn}
           activeOpacity={0.85}
-          onPress={() => router.push('/stream-choice' as Href)}
+          onPress={handleContinue}
           testID="start-match-button"
         >
           <Play size={20} color={Colors.white} fill={Colors.white} />
@@ -1012,6 +1061,11 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 8,
   },
+  playerRowDuplicate: {
+    backgroundColor: Colors.dangerLight,
+    borderWidth: 1,
+    borderColor: Colors.danger,
+  },
   playerNumber: {
     width: 36,
     height: 36,
@@ -1020,6 +1074,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
+  },
+  playerNumberDuplicate: {
+    backgroundColor: Colors.danger,
   },
   playerNumberText: {
     fontSize: 14,
