@@ -10,6 +10,7 @@ const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
 const BACKEND_BASE_URL_KEY = 'pointtracker.backendBaseUrl.v1';
 const WRITE_TOKEN_KEY = 'pointtracker.writeToken.v1';
+const STREAM_ID_KEY = 'pointtracker.streamId.v1';
 const DEVICE_NAME_KEY = 'pointtracker.deviceName.v1';
 const PAST_GAMES_KEY = 'pointtracker.pastGames.v1';
 const PAST_GAME_EVENTS_KEY = 'pointtracker.pastGameEvents.v1';
@@ -28,6 +29,7 @@ function parseClockToSeconds(clock: string): number | null {
 export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   const [backendBaseUrl, setBackendBaseUrlState] = useState<string>(DEFAULT_BACKEND_BASE_URL);
   const [writeToken, setWriteTokenState] = useState<string>('');
+  const [streamId, setStreamIdState] = useState<string>('');
   const [deviceName, setDeviceNameState] = useState<string>('');
 
   const [homeTeamName, setHomeTeamName] = useState<string>('');
@@ -57,10 +59,11 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     let isMounted = true;
     (async () => {
       try {
-        const [storedBaseUrl, storedWriteToken, storedDeviceName, storedPastGames, storedPastGameEvents] =
+        const [storedBaseUrl, storedWriteToken, storedStreamId, storedDeviceName, storedPastGames, storedPastGameEvents] =
           await Promise.all([
             AsyncStorage.getItem(BACKEND_BASE_URL_KEY),
             AsyncStorage.getItem(WRITE_TOKEN_KEY),
+            AsyncStorage.getItem(STREAM_ID_KEY),
             AsyncStorage.getItem(DEVICE_NAME_KEY),
             AsyncStorage.getItem(PAST_GAMES_KEY),
             AsyncStorage.getItem(PAST_GAME_EVENTS_KEY),
@@ -73,6 +76,9 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         }
         if (typeof storedWriteToken === 'string' && storedWriteToken.trim()) {
           setWriteTokenState(storedWriteToken.trim());
+        }
+        if (typeof storedStreamId === 'string' && storedStreamId.trim()) {
+          setStreamIdState(storedStreamId.trim());
         }
         if (typeof storedDeviceName === 'string' && storedDeviceName.trim()) {
           setDeviceNameState(storedDeviceName.trim());
@@ -123,6 +129,16 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       return;
     }
     void AsyncStorage.setItem(WRITE_TOKEN_KEY, trimmed);
+  }, []);
+
+  const setStreamId = useCallback((nextStreamId: string) => {
+    const trimmed = nextStreamId.trim();
+    setStreamIdState(trimmed);
+    if (!trimmed) {
+      void AsyncStorage.removeItem(STREAM_ID_KEY);
+      return;
+    }
+    void AsyncStorage.setItem(STREAM_ID_KEY, trimmed);
   }, []);
 
   const setDeviceName = useCallback((nextDeviceName: string) => {
@@ -253,9 +269,10 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         '',
       );
       const token = writeToken.trim();
+      const currentStreamId = streamId.trim();
 
-      if (!token) {
-        console.log('Result sync skipped (missing write token)', {
+      if (!token || !currentStreamId) {
+        console.log('Result sync skipped (missing write token or streamId)', {
           requestId: `goal-${newEvent.id}`,
         });
         return newEvent;
@@ -278,7 +295,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
             lastAssist: params.assist ? `${params.assist.name} #${params.assist.number}` : '',
           };
 
-          const res = await fetch(`${normalizedBaseUrl}/update_result`, {
+          const res = await fetch(`${normalizedBaseUrl}/streams/${encodeURIComponent(currentStreamId)}/update_result`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -323,7 +340,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
 
       return newEvent;
     },
-    [awayScore, awayTeam, backendBaseUrl, deviceName, homeScore, homeTeam, writeToken],
+    [awayScore, awayTeam, backendBaseUrl, deviceName, homeScore, homeTeam, streamId, writeToken],
   );
 
   const startHalftimeEvent = useCallback(
@@ -630,6 +647,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   return {
     backendBaseUrl,
     writeToken,
+    streamId,
     deviceName,
     homeTeamName,
     awayTeamName,
@@ -644,6 +662,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     pastGameEvents,
     setBackendBaseUrl,
     setWriteToken,
+    setStreamId,
     setDeviceName,
     setHomeTeamName,
     setAwayTeamName,

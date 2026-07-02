@@ -26,6 +26,7 @@ export default function LiveScoringScreen() {
   const {
     backendBaseUrl,
     writeToken,
+    streamId,
     deviceName,
     homeTeam,
     awayTeam,
@@ -160,7 +161,8 @@ export default function LiveScoringScreen() {
   const syncClockStopToBackend = useCallback(
     async (finalElapsedSeconds: number) => {
       const token = writeToken.trim();
-      if (!token) return;
+      const currentStreamId = streamId.trim();
+      if (!token || !currentStreamId) return;
 
       const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
         /\/+$/,
@@ -170,7 +172,7 @@ export default function LiveScoringScreen() {
       const payload = { gameClockSeconds: Math.max(0, Math.floor(finalElapsedSeconds)), running: false };
 
       try {
-        const res = await fetch(`${normalizedBaseUrl}/clock`, {
+        const res = await fetch(`${normalizedBaseUrl}/streams/${encodeURIComponent(currentStreamId)}/clock`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -201,7 +203,7 @@ export default function LiveScoringScreen() {
         console.log('Clock stop sync failed', { message, payload });
       }
     },
-    [backendBaseUrl, deviceName, writeToken],
+    [backendBaseUrl, deviceName, streamId, writeToken],
   );
 
   const handleEndGamePress = useCallback(() => {

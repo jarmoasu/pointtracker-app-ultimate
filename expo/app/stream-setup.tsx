@@ -21,45 +21,46 @@ import { useGameSetup } from '@/app/game-setup-context';
 
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
-type StreamAdminState = {
-  writer?: {
-    activeWriterName?: string | null;
-    claimedAt?: string | null;
-  } | null;
+type StreamLiveState = {
+  homeTeamName?: string;
+  awayTeamName?: string;
+  homeScore?: number;
+  awayScore?: number;
 };
 
 export default function StreamSetupScreen() {
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { backendBaseUrl, deviceName, setBackendBaseUrl, setWriteToken, setDeviceName } =
+  const { backendBaseUrl, streamId, deviceName, setBackendBaseUrl, setWriteToken, setStreamId, setDeviceName } =
     useGameSetup();
 
   const [claimCode, setClaimCode] = useState<string>('');
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
-  const [activeWriterName, setActiveWriterName] = useState<string>('');
-  const [claimedAtIso, setClaimedAtIso] = useState<string>('');
-  const [isAdminStateLoading, setIsAdminStateLoading] = useState<boolean>(false);
+  const [connectedState, setConnectedState] = useState<StreamLiveState | null>(null);
+  const [isConnectedStateLoading, setIsConnectedStateLoading] = useState<boolean>(false);
 
-  const fetchStreamReservationInfo = async () => {
+  const fetchConnectedStreamInfo = async (targetStreamId: string) => {
+    if (!targetStreamId) {
+      setConnectedState(null);
+      return;
+    }
     const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(/\/+$/, '');
     try {
-      setIsAdminStateLoading(true);
-      const res = await fetch(`${normalizedBaseUrl}/admin/state`);
+      setIsConnectedStateLoading(true);
+      const res = await fetch(`${normalizedBaseUrl}/streams/${encodeURIComponent(targetStreamId)}/live`);
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const payload = (await res.json()) as StreamAdminState;
-      setActiveWriterName(payload?.writer?.activeWriterName?.trim() ?? '');
-      setClaimedAtIso(payload?.writer?.claimedAt?.trim() ?? '');
+      const payload = (await res.json()) as StreamLiveState;
+      setConnectedState(payload);
     } catch {
-      setActiveWriterName('');
-      setClaimedAtIso('');
+      setConnectedState(null);
     } finally {
-      setIsAdminStateLoading(false);
+      setIsConnectedStateLoading(false);
     }
   };
 
   useEffect(() => {
-    void fetchStreamReservationInfo();
-  }, [backendBaseUrl]);
+    void fetchConnectedStreamInfo(streamId);
+  }, [backendBaseUrl, streamId]);
 
   const handleClaimStream = async () => {
     const trimmedClaimCode = claimCode.trim();
@@ -94,12 +95,14 @@ export default function StreamSetupScreen() {
       }
 
       const nextWriteToken = typeof payload?.writeToken === 'string' ? payload.writeToken.trim() : '';
-      if (!nextWriteToken) throw new Error('No writeToken returned from server.');
+      const nextStreamId = typeof payload?.streamId === 'string' ? payload.streamId.trim() : '';
+      if (!nextWriteToken || !nextStreamId) throw new Error('No writeToken/streamId returned from server.');
 
       setWriteToken(nextWriteToken);
+      setStreamId(nextStreamId);
       setClaimCode('');
-      void fetchStreamReservationInfo();
-      Alert.alert('Stream claimed', 'Write token saved on this device.');
+      void fetchConnectedStreamInfo(nextStreamId);
+      Alert.alert('Stream claimed', `Connected to court "${nextStreamId}".`);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Unknown error';
       Alert.alert('Claim failed', message);
@@ -190,24 +193,24 @@ export default function StreamSetupScreen() {
           </TouchableOpacity>
 
           <View style={styles.streamReservationInfo}>
-            {isAdminStateLoading ? (
-              <Text style={styles.streamReservationText}>Checking stream reservation…</Text>
-            ) : activeWriterName ? (
+            {isConnectedStateLoading ? (
+              <Text style={styles.streamReservationText}>Checking connection…</Text>
+            ) : streamId && connectedState ? (
               <>
                 <Text style={styles.streamReservationText}>
-                  Reserved by: <Text style={styles.streamReservationValue}>{activeWriterName}</Text>
+                  Court: <Text style={styles.streamReservationValue}>{streamId}</Text>
                 </Text>
-                {claimedAtIso ? (
-                  <Text style={styles.streamReservationText}>
-                    Claimed at:{' '}
-                    <Text style={styles.streamReservationValue}>
-                      {new Date(claimedAtIso).toLocaleString()}
-                    </Text>
+                <Text style={styles.streamReservationText}>
+                  Teams:{' '}
+                  <Text style={styles.streamReservationValue}>
+                    {connectedState.homeTeamName || 'Home'} {connectedState.homeScore ?? 0} - {connectedState.awayScore ?? 0} {connectedState.awayTeamName || 'Away'}
                   </Text>
-                ) : null}
+                </Text>
               </>
+            ) : streamId ? (
+              <Text style={styles.streamReservationText}>Connected to court "{streamId}", but couldn't load its state.</Text>
             ) : (
-              <Text style={styles.streamReservationText}>No active stream reservation info.</Text>
+              <Text style={styles.streamReservationText}>Not connected to a court yet — enter a claim code above.</Text>
             )}
           </View>
         </View>

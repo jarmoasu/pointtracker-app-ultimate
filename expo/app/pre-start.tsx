@@ -11,19 +11,20 @@ const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender
 
 export default function PreStartScreen() {
   const router = useRouter();
-  const { backendBaseUrl, writeToken, deviceName, homeTeam, awayTeam, resetLiveGame } =
+  const { backendBaseUrl, writeToken, streamId, deviceName, homeTeam, awayTeam, resetLiveGame } =
     useGameSetup();
 
   const syncTeamsToBackend = async () => {
     const token = writeToken.trim();
-    if (!token) return;
+    const currentStreamId = streamId.trim();
+    if (!token || !currentStreamId) return;
 
     const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(/\/+$/, '');
     const trimmedDeviceName = deviceName.trim();
     const payload = { homeTeamName: homeTeam.name, awayTeamName: awayTeam.name };
 
     try {
-      const res = await fetch(`${normalizedBaseUrl}/teams`, {
+      const res = await fetch(`${normalizedBaseUrl}/streams/${encodeURIComponent(currentStreamId)}/teams`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -57,14 +58,15 @@ export default function PreStartScreen() {
 
   const syncClockStartToBackend = async () => {
     const token = writeToken.trim();
-    if (!token) return;
+    const currentStreamId = streamId.trim();
+    if (!token || !currentStreamId) return;
 
     const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(/\/+$/, '');
     const trimmedDeviceName = deviceName.trim();
     const payload = { gameClockSeconds: 0, running: true };
 
     try {
-      const res = await fetch(`${normalizedBaseUrl}/clock`, {
+      const res = await fetch(`${normalizedBaseUrl}/streams/${encodeURIComponent(currentStreamId)}/clock`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
