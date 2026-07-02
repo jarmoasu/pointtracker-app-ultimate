@@ -10,11 +10,13 @@ import {
   ActivityIndicator,
   Platform,
   KeyboardAvoidingView,
+  Share,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { Wifi, KeyRound } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import { Wifi, KeyRound, Copy, Check, Share2 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
@@ -38,6 +40,33 @@ export default function StreamSetupScreen() {
   const [isClaiming, setIsClaiming] = useState<boolean>(false);
   const [connectedState, setConnectedState] = useState<StreamLiveState | null>(null);
   const [isConnectedStateLoading, setIsConnectedStateLoading] = useState<boolean>(false);
+  const [justCopied, setJustCopied] = useState<boolean>(false);
+
+  const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(/\/+$/, '');
+  const scoreboardUrl = streamId
+    ? `${normalizedBaseUrl}/scoreboard.html?stream=${encodeURIComponent(streamId)}`
+    : '';
+
+  const handleCopyScoreboardLink = async () => {
+    if (!scoreboardUrl) return;
+    await Clipboard.setStringAsync(scoreboardUrl);
+    setJustCopied(true);
+    setTimeout(() => setJustCopied(false), 2000);
+  };
+
+  const handleShareScoreboardLink = async () => {
+    if (!scoreboardUrl) return;
+    try {
+      await Share.share(
+        Platform.OS === 'ios'
+          ? { url: scoreboardUrl, message: scoreboardUrl }
+          : { message: scoreboardUrl },
+      );
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Share failed', message);
+    }
+  };
 
   const fetchConnectedStreamInfo = async (targetStreamId: string) => {
     if (!targetStreamId) {
@@ -177,6 +206,7 @@ export default function StreamSetupScreen() {
               testID="claim-code-input"
             />
           </View>
+          <Text style={styles.claimCodeHint}>Testing? Use claim code 12345678</Text>
 
           <TouchableOpacity
             style={[styles.claimStreamButton, isClaiming ? styles.claimStreamButtonDisabled : null]}
@@ -213,6 +243,42 @@ export default function StreamSetupScreen() {
               <Text style={styles.streamReservationText}>Not connected to a court yet — enter a claim code above.</Text>
             )}
           </View>
+
+          {streamId ? (
+            <View style={styles.scoreboardLinkCard}>
+              <Text style={styles.inputLabel}>SCOREBOARD LINK</Text>
+              <Text style={styles.scoreboardLinkUrl} numberOfLines={1} ellipsizeMode="middle">
+                {scoreboardUrl}
+              </Text>
+              <View style={styles.scoreboardLinkActions}>
+                <TouchableOpacity
+                  style={styles.scoreboardLinkButton}
+                  activeOpacity={0.85}
+                  onPress={handleCopyScoreboardLink}
+                  testID="copy-scoreboard-link-button"
+                >
+                  {justCopied ? (
+                    <Check size={16} color={Colors.dark} />
+                  ) : (
+                    <Copy size={16} color={Colors.dark} />
+                  )}
+                  <Text style={styles.scoreboardLinkButtonText}>
+                    {justCopied ? 'Copied' : 'Copy Link'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.scoreboardLinkButton}
+                  activeOpacity={0.85}
+                  onPress={handleShareScoreboardLink}
+                  testID="share-scoreboard-link-button"
+                >
+                  <Share2 size={16} color={Colors.dark} />
+                  <Text style={styles.scoreboardLinkButtonText}>Share</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : null}
         </View>
       </ScrollView>
 
@@ -272,6 +338,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.dark,
   },
+  claimCodeHint: {
+    fontSize: 12,
+    color: Colors.textTertiary,
+    marginTop: -8,
+    marginBottom: 16,
+  },
   claimStreamButton: {
     backgroundColor: Colors.dark,
     paddingVertical: 12,
@@ -305,6 +377,41 @@ const styles = StyleSheet.create({
   streamReservationValue: {
     color: Colors.dark,
     fontWeight: '700' as const,
+  },
+  scoreboardLinkCard: {
+    marginTop: 16,
+  },
+  scoreboardLinkUrl: {
+    fontSize: 13,
+    color: Colors.dark,
+    backgroundColor: Colors.gray100,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 10,
+  },
+  scoreboardLinkActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  scoreboardLinkButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.gray100,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    paddingVertical: 12,
+  },
+  scoreboardLinkButtonText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.dark,
   },
   bottomBar: {
     position: 'absolute',

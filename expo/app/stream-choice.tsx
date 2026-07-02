@@ -35,9 +35,10 @@ export default function StreamChoiceScreen() {
             <Wifi size={28} color={Colors.primary} />
           </View>
           <View style={styles.optionText}>
-            <Text style={styles.optionTitle}>Send to stream</Text>
+            <Text style={styles.optionTitle}>Send to stream & scoreboard</Text>
             <Text style={styles.optionDescription}>
-              Connect to the pointtracker service and send live scores to a stream overlay.
+              Connect to the pointtracker service and send live scores to a stream overlay and a
+              shareable digital scoreboard.
             </Text>
           </View>
         </TouchableOpacity>
