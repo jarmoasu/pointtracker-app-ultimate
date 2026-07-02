@@ -430,7 +430,7 @@ export default function GoalDetailsScreen() {
         ) : null}
 
         <TouchableOpacity
-          style={styles.noAssistRow}
+          style={[styles.noAssistRow, selectedAssist === 'none' && styles.noAssistRowSelected]}
           onPress={() => {
             setSelectedAssist('none');
             scrollToScorer();
@@ -438,8 +438,17 @@ export default function GoalDetailsScreen() {
           activeOpacity={0.7}
           testID="no-assist-button"
         >
-          <Ban size={18} color={Colors.textTertiary} />
-          <Text style={styles.noAssistText}>No Assist / Callahan</Text>
+          <Ban size={18} color={selectedAssist === 'none' ? Colors.primaryDark : Colors.textTertiary} />
+          <Text
+            style={[styles.noAssistText, selectedAssist === 'none' && styles.noAssistTextSelected]}
+          >
+            No Assist / Callahan
+          </Text>
+          {selectedAssist === 'none' && (
+            <View style={styles.checkIcon}>
+              <Check size={18} color={Colors.white} />
+            </View>
+          )}
         </TouchableOpacity>
 
         <View
@@ -899,10 +908,20 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     marginTop: 4,
   },
+  noAssistRowSelected: {
+    borderStyle: 'solid',
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primaryFaded,
+  },
   noAssistText: {
     fontSize: 15,
     fontWeight: '500' as const,
     color: Colors.textSecondary,
+    flex: 1,
+  },
+  noAssistTextSelected: {
+    fontWeight: '600' as const,
+    color: Colors.primaryDark,
   },
   bottomSpacer: {
     height: 40,
