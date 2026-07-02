@@ -12,7 +12,7 @@ import {
   Keyboard,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Search, Check, Save, Trash2, Ban, Plus } from 'lucide-react-native';
+import { Search, Check, Save, Trash2, Ban, Plus, Timer } from 'lucide-react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 
 import Colors from '@/constants/colors';
@@ -26,7 +26,7 @@ export default function GoalDetailsScreen() {
     time?: string;
     eventId?: string;
   }>();
-  const { homeTeam, awayTeam, addGoalEvent, addPlayer, liveEvents, updateGoalEvent } =
+  const { homeTeam, awayTeam, addGoalEvent, addPlayer, liveEvents, updateGoalEvent, startTimeoutEvent } =
     useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
   const [assistSearch, setAssistSearch] = useState<string>('');
@@ -157,30 +157,38 @@ export default function GoalDetailsScreen() {
     resetNewPlayerForm();
   }, [addPlayer, newPlayerName, newPlayerNumber, newPlayerTarget, resetNewPlayerForm, scoringSide]);
 
-  const handleSave = useCallback(() => {
+  const validateSelection = useCallback(() => {
     if (!selectedScorer) {
       console.log('GoalDetails: missing scorer');
       Alert.alert('Select a scorer', 'Please choose a goal scorer before saving.');
-      return;
+      return null;
     }
 
     const scorer = players.find((player) => player.id === selectedScorer);
     if (!scorer) {
       console.log('GoalDetails: scorer not found', { selectedScorer });
       Alert.alert('Scorer not found', 'Please select a valid scorer.');
-      return;
+      return null;
     }
 
     if (selectedAssist && selectedAssist !== 'none' && selectedAssist === selectedScorer) {
       console.log('GoalDetails: scorer and assist match', { selectedScorer, selectedAssist });
       Alert.alert('Invalid assist', 'Scorer and assist cannot be the same player.');
-      return;
+      return null;
     }
 
     const assist =
       selectedAssist && selectedAssist !== 'none'
         ? players.find((player) => player.id === selectedAssist) ?? null
         : null;
+
+    return { scorer, assist };
+  }, [players, selectedAssist, selectedScorer]);
+
+  const handleSave = useCallback(() => {
+    const selection = validateSelection();
+    if (!selection) return;
+    const { scorer, assist } = selection;
 
     const baseGameTime = time ?? editingEvent?.gameTime ?? '--:--';
 
@@ -216,14 +224,30 @@ export default function GoalDetailsScreen() {
     editingEvent,
     editMinutes,
     editSeconds,
-    players,
     router,
     scoringSide,
-    selectedAssist,
-    selectedScorer,
     time,
     updateGoalEvent,
+    validateSelection,
   ]);
+
+  const handleSaveAndStartTimeout = useCallback(() => {
+    const selection = validateSelection();
+    if (!selection) return;
+    const { scorer, assist } = selection;
+
+    const baseGameTime = time ?? '--:--';
+
+    addGoalEvent({ side: scoringSide, scorer, assist, gameTime: baseGameTime });
+    startTimeoutEvent({ side: scoringSide, gameTime: baseGameTime });
+    console.log('GoalDetails: saved goal and started timeout', {
+      scorer,
+      assist,
+      gameTime: baseGameTime,
+      scoringSide,
+    });
+    router.back();
+  }, [addGoalEvent, router, scoringSide, startTimeoutEvent, time, validateSelection]);
 
   React.useEffect(() => {
     if (!eventId) return;
@@ -592,12 +616,23 @@ export default function GoalDetailsScreen() {
           <Save size={20} color={Colors.white} />
           <Text style={styles.saveBtnText}>Save Goal</Text>
         </TouchableOpacity>
+        {!editingEvent ? (
+          <TouchableOpacity
+            style={styles.saveTimeoutBtn}
+            activeOpacity={0.85}
+            onPress={handleSaveAndStartTimeout}
+            testID="save-goal-timeout-button"
+          >
+            <Timer size={20} color={Colors.white} />
+            <Text style={styles.saveTimeoutBtnText}>Save Goal & Start Timeout</Text>
+          </TouchableOpacity>
+        ) : null}
         <TouchableOpacity
           style={styles.discardBtn}
           onPress={() => router.back()}
           testID="discard-button"
         >
-          <Trash2 size={16} color={Colors.textSecondary} />
+          <Trash2 size={16} color={Colors.danger} />
           <Text style={styles.discardText}>Discard Event</Text>
         </TouchableOpacity>
       </View>
@@ -959,6 +994,22 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
     color: Colors.white,
   },
+  saveTimeoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    backgroundColor: Colors.warning,
+    borderRadius: 16,
+    paddingVertical: 18,
+    width: '100%',
+    marginBottom: 10,
+  },
+  saveTimeoutBtnText: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.white,
+  },
   discardBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -969,6 +1020,6 @@ const styles = StyleSheet.create({
   discardText: {
     fontSize: 14,
     fontWeight: '500' as const,
-    color: Colors.textSecondary,
+    color: Colors.danger,
   },
 });

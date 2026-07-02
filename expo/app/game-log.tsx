@@ -39,6 +39,12 @@ function ScoreHeader() {
   );
 }
 
+function formatEventDuration(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 function SectionDivider({ label }: { label: string }) {
   return (
     <View style={styles.sectionDivider}>
@@ -172,34 +178,47 @@ function TimeoutEvent({
   onEdit: (event: GameEvent) => void;
   onDelete: (event: GameEvent) => void;
 }) {
+  const isActive = event.isTimeoutActive === true;
+  const rangeLabel = isActive
+    ? `${event.gameTime} → running`
+    : event.timeoutEndTime
+      ? `${event.gameTime} → ${event.timeoutEndTime}${
+          typeof event.timeoutDurationSeconds === 'number'
+            ? ` (${formatEventDuration(event.timeoutDurationSeconds)})`
+            : ''
+        }`
+      : event.gameTime;
+
   return (
-    <View style={styles.timeoutCard} testID="timeout-event-card">
+    <View
+      style={[styles.timeoutCard, isActive ? styles.timeoutCardActive : null]}
+      testID="timeout-event-card"
+    >
       <View style={styles.timeoutLeft}>
-        <Clock size={18} color={Colors.textTertiary} />
+        <Clock size={18} color={isActive ? Colors.warning : Colors.textTertiary} />
         <View>
-          <Text style={styles.timeoutTitle}>Timeout</Text>
-          <Text style={styles.timeoutDesc}>{event.description}</Text>
+          <Text style={styles.timeoutTitle}>
+            {event.teamName ?? 'Timeout'} Timeout{isActive ? ' · running' : ''}
+          </Text>
+          <Text style={styles.timeoutDesc}>{rangeLabel}</Text>
         </View>
       </View>
-      <View style={styles.timeoutRight}>
-        <Text style={styles.eventTime}>{event.gameTime}</Text>
-        {canEdit ? (
-          <View style={styles.eventActions}>
-            <TouchableOpacity
-              onPress={() => onEdit(event)}
-              testID={`edit-timeout-${event.id}`}
-            >
-              <Text style={styles.editBtnText}>edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => onDelete(event)}
-              testID={`delete-timeout-${event.id}`}
-            >
-              <Text style={styles.deleteBtnText}>delete</Text>
-            </TouchableOpacity>
-          </View>
-        ) : null}
-      </View>
+      {canEdit ? (
+        <View style={styles.eventActions}>
+          <TouchableOpacity
+            onPress={() => onEdit(event)}
+            testID={`edit-timeout-${event.id}`}
+          >
+            <Text style={styles.editBtnText}>edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onDelete(event)}
+            testID={`delete-timeout-${event.id}`}
+          >
+            <Text style={styles.deleteBtnText}>delete</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -213,26 +232,37 @@ function HalftimeEvent({
   canDelete: boolean;
   onDelete: (event: GameEvent) => void;
 }) {
+  const isActive = event.isHalftimeActive === true;
+  const rangeLabel = isActive
+    ? `${event.gameTime} → running`
+    : event.halftimeEndTime
+      ? `${event.gameTime} → ${event.halftimeEndTime}${
+          typeof event.halftimeDurationSeconds === 'number'
+            ? ` (${formatEventDuration(event.halftimeDurationSeconds)})`
+            : ''
+        }`
+      : event.gameTime;
+
   return (
-    <View style={styles.halftimeCard} testID="halftime-event-card">
+    <View
+      style={[styles.halftimeCard, isActive ? styles.timeoutCardActive : null]}
+      testID="halftime-event-card"
+    >
       <View style={styles.timeoutLeft}>
-        <Coffee size={18} color={Colors.textTertiary} />
+        <Coffee size={18} color={isActive ? Colors.warning : Colors.textTertiary} />
         <View>
-          <Text style={styles.timeoutTitle}>Half-time</Text>
-          <Text style={styles.timeoutDesc}>Break</Text>
+          <Text style={styles.timeoutTitle}>Half-time{isActive ? ' · running' : ''}</Text>
+          <Text style={styles.timeoutDesc}>{rangeLabel}</Text>
         </View>
       </View>
-      <View style={styles.timeoutRight}>
-        <Text style={styles.eventTime}>{event.gameTime}</Text>
-        {canDelete ? (
-          <TouchableOpacity
-            onPress={() => onDelete(event)}
-            testID={`delete-halftime-${event.id}`}
-          >
-            <Text style={styles.deleteBtnText}>delete</Text>
-          </TouchableOpacity>
-        ) : null}
-      </View>
+      {canDelete ? (
+        <TouchableOpacity
+          onPress={() => onDelete(event)}
+          testID={`delete-halftime-${event.id}`}
+        >
+          <Text style={styles.deleteBtnText}>delete</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }
@@ -617,6 +647,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     borderLeftWidth: 3,
     borderLeftColor: Colors.gray200,
+  },
+  timeoutCardActive: {
+    borderLeftColor: Colors.warning,
+    backgroundColor: Colors.warningLight,
   },
   timeoutLeft: {
     flexDirection: 'row',

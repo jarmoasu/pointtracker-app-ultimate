@@ -49,6 +49,19 @@ export interface GameEvent {
   scoreAtEvent?: GameScore;
   description?: string;
   isSynced: boolean;
+  // Timeout-specific fields (type === 'timeout'). `gameTime`/`gameClockSeconds`
+  // above hold the timeout START time; these hold the end/running state.
+  isTimeoutActive?: boolean;
+  timeoutEndTime?: string;
+  timeoutEndSeconds?: number;
+  timeoutDurationSeconds?: number;
+  // Halftime-specific fields (type === 'halftime'). `gameTime`/`gameClockSeconds`
+  // above hold the halftime START time (always the last goal's time); these
+  // hold the end/running state.
+  isHalftimeActive?: boolean;
+  halftimeEndTime?: string;
+  halftimeEndSeconds?: number;
+  halftimeDurationSeconds?: number;
 }
 
 export interface SeasonSummary {

@@ -44,6 +44,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     () => liveEvents.some((event) => event.type === 'halftime'),
     [liveEvents],
   );
+  const activeTimeoutEvent = useMemo<GameEvent | null>(
+    () => liveEvents.find((event) => event.type === 'timeout' && event.isTimeoutActive === true) ?? null,
+    [liveEvents],
+  );
+  const activeHalftimeEvent = useMemo<GameEvent | null>(
+    () => liveEvents.find((event) => event.type === 'halftime' && event.isHalftimeActive === true) ?? null,
+    [liveEvents],
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -318,10 +326,14 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayScore, awayTeam, backendBaseUrl, deviceName, homeScore, homeTeam, writeToken],
   );
 
-  const addHalftimeEvent = useCallback(
+  const startHalftimeEvent = useCallback(
     (params: { gameTime: string }) => {
       if (hasHalftimeEvent) {
         console.log('GameSetup halftime already logged');
+        return null;
+      }
+      if (activeTimeoutEvent) {
+        console.log('GameSetup cannot start halftime while a timeout is active');
         return null;
       }
 
@@ -329,18 +341,64 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         id: createId(),
         type: 'halftime',
         gameTime: params.gameTime,
+        gameClockSeconds: parseClockToSeconds(params.gameTime) ?? undefined,
+        isHalftimeActive: true,
         isSynced: false,
       };
 
       setLiveEvents((prev) => [newEvent, ...prev]);
-      console.log('GameSetup add halftime event', { newEvent });
+      console.log('GameSetup start halftime event', { newEvent });
       return newEvent;
     },
-    [hasHalftimeEvent],
+    [activeTimeoutEvent, hasHalftimeEvent],
   );
 
-  const addTimeoutEvent = useCallback(
+  const endHalftimeEvent = useCallback(
+    (eventId: string, params: { gameTime: string }) => {
+      const endSeconds = parseClockToSeconds(params.gameTime) ?? undefined;
+      let updatedEvent: GameEvent | null = null;
+
+      setLiveEvents((prev) =>
+        prev.map((event) => {
+          if (event.id !== eventId || event.type !== 'halftime' || !event.isHalftimeActive) {
+            return event;
+          }
+          const startSeconds = event.gameClockSeconds;
+          const durationSeconds =
+            typeof startSeconds === 'number' && typeof endSeconds === 'number'
+              ? Math.max(0, endSeconds - startSeconds)
+              : undefined;
+          const nextEvent: GameEvent = {
+            ...event,
+            isHalftimeActive: false,
+            halftimeEndTime: params.gameTime,
+            halftimeEndSeconds: endSeconds,
+            halftimeDurationSeconds: durationSeconds,
+          };
+          updatedEvent = nextEvent;
+          return nextEvent;
+        }),
+      );
+
+      console.log('GameSetup end halftime event', { eventId, gameTime: params.gameTime });
+      return updatedEvent;
+    },
+    [],
+  );
+
+  const startTimeoutEvent = useCallback(
     (params: { side: TeamSide; gameTime: string }) => {
+      if (activeTimeoutEvent) {
+        console.log('GameSetup timeout already active, ignoring start', {
+          activeTimeoutEventId: activeTimeoutEvent.id,
+        });
+        return null;
+      }
+      if (activeHalftimeEvent) {
+        console.log('GameSetup cannot start timeout while halftime is active');
+        return null;
+      }
+
       const team = params.side === 'home' ? homeTeam : awayTeam;
       const newEvent: GameEvent = {
         id: createId(),
@@ -348,15 +406,51 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         teamId: team.id,
         teamName: team.name,
         gameTime: params.gameTime,
+        gameClockSeconds: parseClockToSeconds(params.gameTime) ?? undefined,
+        isTimeoutActive: true,
         description: `${team.name} timeout`,
         isSynced: false,
       };
 
       setLiveEvents((prev) => [newEvent, ...prev]);
-      console.log('GameSetup add timeout event', { newEvent });
+      console.log('GameSetup start timeout event', { newEvent });
       return newEvent;
     },
-    [awayTeam, homeTeam],
+    [activeHalftimeEvent, activeTimeoutEvent, awayTeam, homeTeam],
+  );
+
+  const endTimeoutEvent = useCallback(
+    (eventId: string, params: { gameTime: string }) => {
+      const endSeconds = parseClockToSeconds(params.gameTime) ?? undefined;
+      let updatedEvent: GameEvent | null = null;
+
+      setLiveEvents((prev) =>
+        prev.map((event) => {
+          if (event.id !== eventId || event.type !== 'timeout' || !event.isTimeoutActive) {
+            return event;
+          }
+          const startSeconds = event.gameClockSeconds;
+          const durationSeconds =
+            typeof startSeconds === 'number' && typeof endSeconds === 'number'
+              ? Math.max(0, endSeconds - startSeconds)
+              : undefined;
+          const nextEvent: GameEvent = {
+            ...event,
+            isTimeoutActive: false,
+            timeoutEndTime: params.gameTime,
+            timeoutEndSeconds: endSeconds,
+            timeoutDurationSeconds: durationSeconds,
+            description: `${event.teamName} timeout`,
+          };
+          updatedEvent = nextEvent;
+          return nextEvent;
+        }),
+      );
+
+      console.log('GameSetup end timeout event', { eventId, gameTime: params.gameTime });
+      return updatedEvent;
+    },
+    [],
   );
 
   const removeLiveEvent = useCallback((eventId: string) => {
@@ -557,8 +651,12 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     updatePlayer,
     removePlayer,
     addGoalEvent,
-    addHalftimeEvent,
-    addTimeoutEvent,
+    startHalftimeEvent,
+    endHalftimeEvent,
+    activeHalftimeEvent,
+    startTimeoutEvent,
+    endTimeoutEvent,
+    activeTimeoutEvent,
     hasHalftimeEvent,
     isGameEnded,
     setIsGameEnded,

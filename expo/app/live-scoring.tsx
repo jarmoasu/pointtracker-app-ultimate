@@ -27,8 +27,12 @@ export default function LiveScoringScreen() {
     homeScore,
     awayScore,
     liveEvents,
-    addHalftimeEvent,
-    addTimeoutEvent,
+    startHalftimeEvent,
+    endHalftimeEvent,
+    activeHalftimeEvent,
+    startTimeoutEvent,
+    endTimeoutEvent,
+    activeTimeoutEvent,
     hasHalftimeEvent,
     isGameEnded,
     endGame,
@@ -38,17 +42,77 @@ export default function LiveScoringScreen() {
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
   const clockIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const clockStartRef = useRef<number>(Date.now());
-  const [pendingTimeout, setPendingTimeout] = useState<{
+  const [pendingTimeoutStart, setPendingTimeoutStart] = useState<{
     side: 'home' | 'away';
     currentTime: string;
   } | null>(null);
+
+  const isHomeTimeoutActive = activeTimeoutEvent?.teamId === homeTeam.id;
+  const isAwayTimeoutActive = activeTimeoutEvent?.teamId === awayTeam.id;
+  const isAnyTimeoutActive = !!activeTimeoutEvent;
+  const isAnyHalftimeActive = !!activeHalftimeEvent;
 
   const lastGoalEvent = useMemo(
     () => liveEvents.find((e) => e.type === 'goal') ?? null,
     [liveEvents],
   );
 
+  // Timeouts/halftime are marked with a game-clock start time (possibly
+  // backdated to the last goal), so the running badge counts from that
+  // game-clock moment rather than from real time at button-press — it rides
+  // the same ticking `elapsedSeconds` as the main clock, just offset by the
+  // recorded start.
+  const timeoutElapsedSeconds = useMemo(() => {
+    if (!activeTimeoutEvent || typeof activeTimeoutEvent.gameClockSeconds !== 'number') {
+      return 0;
+    }
+    return Math.max(0, elapsedSeconds - activeTimeoutEvent.gameClockSeconds);
+  }, [activeTimeoutEvent, elapsedSeconds]);
+
+  const halftimeElapsedSeconds = useMemo(() => {
+    if (!activeHalftimeEvent || typeof activeHalftimeEvent.gameClockSeconds !== 'number') {
+      return 0;
+    }
+    return Math.max(0, elapsedSeconds - activeHalftimeEvent.gameClockSeconds);
+  }, [activeHalftimeEvent, elapsedSeconds]);
+
+  // liveEvents is newest-first. A timeout's index greater than the halftime
+  // event's index happened before it (period 1); a smaller index happened
+  // after it (period 2). No halftime event yet means everything is period 1.
+  // A timeout counts as soon as it exists in liveEvents (i.e. from the
+  // moment it starts), regardless of whether it has ended.
+  const getTeamTimeoutCounts = useCallback(
+    (teamId: string): { half: number; total: number } => {
+      const halftimeIndex = liveEvents.findIndex((event) => event.type === 'halftime');
+      let half = 0;
+      let total = 0;
+
+      liveEvents.forEach((event, index) => {
+        if (event.type !== 'timeout' || event.teamId !== teamId) return;
+        total += 1;
+        const eventPeriod = halftimeIndex === -1 || index > halftimeIndex ? 1 : 2;
+        if (eventPeriod === period) half += 1;
+      });
+
+      return { half, total };
+    },
+    [liveEvents, period],
+  );
+
+  const homeTimeoutCounts = useMemo(
+    () => getTeamTimeoutCounts(homeTeam.id),
+    [getTeamTimeoutCounts, homeTeam.id],
+  );
+  const awayTimeoutCounts = useMemo(
+    () => getTeamTimeoutCounts(awayTeam.id),
+    [getTeamTimeoutCounts, awayTeam.id],
+  );
+
   const handleEndGamePress = useCallback(() => {
+    if (activeTimeoutEvent || activeHalftimeEvent) {
+      console.log('End game blocked - timeout or halftime in progress');
+      return;
+    }
     console.log('End game pressed - showing confirmation');
     Alert.alert(
       'End game?',
@@ -69,7 +133,7 @@ export default function LiveScoringScreen() {
         },
       ],
     );
-  }, [endGame]);
+  }, [activeHalftimeEvent, activeTimeoutEvent, endGame]);
 
   useEffect(() => {
     console.log('Live scoring clock effect', { isClockRunning, isGameEnded });
@@ -153,39 +217,62 @@ export default function LiveScoringScreen() {
   );
 
   const handleHalftimePress = useCallback(() => {
-    const roundedTime = getRoundedGameTime();
-    const halftimeEvent = addHalftimeEvent({ gameTime: roundedTime });
-    if (!halftimeEvent) {
+    if (activeHalftimeEvent) {
+      const roundedTime = getRoundedGameTime();
+      const endedEvent = endHalftimeEvent(activeHalftimeEvent.id, { gameTime: roundedTime });
+      console.log('LiveScoring halftime ended', endedEvent);
+      return;
+    }
+
+    const startTime = lastGoalEvent?.gameTime ?? getRoundedGameTime();
+    const startedEvent = startHalftimeEvent({ gameTime: startTime });
+    if (!startedEvent) {
       Alert.alert('Half-time already logged', 'Only one half-time can be added per game.');
       return;
     }
-    console.log('LiveScoring halftime logged', halftimeEvent);
-  }, [addHalftimeEvent, getRoundedGameTime]);
+    console.log('LiveScoring halftime started', startedEvent);
+  }, [activeHalftimeEvent, endHalftimeEvent, getRoundedGameTime, lastGoalEvent, startHalftimeEvent]);
 
   const handleTimeoutPress = useCallback(
     (side: 'home' | 'away') => {
+      const team = side === 'home' ? homeTeam : awayTeam;
+
+      if (activeTimeoutEvent) {
+        if (activeTimeoutEvent.teamId !== team.id) return;
+        const roundedTime = getRoundedGameTime();
+        const endedEvent = endTimeoutEvent(activeTimeoutEvent.id, { gameTime: roundedTime });
+        console.log('LiveScoring timeout ended', endedEvent);
+        return;
+      }
+
       const roundedTime = getRoundedGameTime();
-      setPendingTimeout({ side, currentTime: roundedTime });
+      setPendingTimeoutStart({ side, currentTime: roundedTime });
     },
-    [getRoundedGameTime],
+    [activeTimeoutEvent, awayTeam, endTimeoutEvent, getRoundedGameTime, homeTeam],
   );
 
-  const confirmTimeoutNow = useCallback(() => {
-    if (!pendingTimeout) return;
-    const timeoutEvent = addTimeoutEvent({ side: pendingTimeout.side, gameTime: pendingTimeout.currentTime });
-    console.log('LiveScoring timeout logged', timeoutEvent);
-    setPendingTimeout(null);
-  }, [pendingTimeout, addTimeoutEvent]);
+  const confirmTimeoutStartNow = useCallback(() => {
+    if (!pendingTimeoutStart) return;
+    const startedEvent = startTimeoutEvent({
+      side: pendingTimeoutStart.side,
+      gameTime: pendingTimeoutStart.currentTime,
+    });
+    console.log('LiveScoring timeout started', startedEvent);
+    setPendingTimeoutStart(null);
+  }, [pendingTimeoutStart, startTimeoutEvent]);
 
-  const confirmTimeoutAtGoal = useCallback(() => {
-    if (!pendingTimeout || !lastGoalEvent) return;
-    const timeoutEvent = addTimeoutEvent({ side: pendingTimeout.side, gameTime: lastGoalEvent.gameTime });
-    console.log('LiveScoring timeout logged at goal time', timeoutEvent);
-    setPendingTimeout(null);
-  }, [pendingTimeout, lastGoalEvent, addTimeoutEvent]);
+  const confirmTimeoutStartAtGoal = useCallback(() => {
+    if (!pendingTimeoutStart || !lastGoalEvent) return;
+    const startedEvent = startTimeoutEvent({
+      side: pendingTimeoutStart.side,
+      gameTime: lastGoalEvent.gameTime,
+    });
+    console.log('LiveScoring timeout started at goal time', startedEvent);
+    setPendingTimeoutStart(null);
+  }, [pendingTimeoutStart, lastGoalEvent, startTimeoutEvent]);
 
-  const cancelPendingTimeout = useCallback(() => {
-    setPendingTimeout(null);
+  const cancelPendingTimeoutStart = useCallback(() => {
+    setPendingTimeoutStart(null);
   }, []);
 
   return (
@@ -251,10 +338,13 @@ export default function LiveScoringScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.homeScoreBtn, isGameEnded ? styles.disabledCard : null]}
+          style={[
+            styles.homeScoreBtn,
+            isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive ? styles.disabledCard : null,
+          ]}
           activeOpacity={0.85}
           onPress={() => handleScorePress('home')}
-          disabled={isGameEnded}
+          disabled={isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive}
           testID="home-score-button"
         >
           <View>
@@ -263,15 +353,18 @@ export default function LiveScoringScreen() {
             <Text style={styles.scoreBtnAction}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlus}>
-            <Plus size={28} color={Colors.white} />
+            <Plus size={22} color={Colors.white} />
           </View>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.awayScoreBtn, isGameEnded ? styles.disabledCard : null]}
+          style={[
+            styles.awayScoreBtn,
+            isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive ? styles.disabledCard : null,
+          ]}
           activeOpacity={0.85}
           onPress={() => handleScorePress('away')}
-          disabled={isGameEnded}
+          disabled={isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive}
           testID="away-score-button"
         >
           <View>
@@ -280,7 +373,7 @@ export default function LiveScoringScreen() {
             <Text style={styles.scoreBtnActionDark}>Score +1</Text>
           </View>
           <View style={styles.scoreBtnPlusDark}>
-            <Plus size={28} color={Colors.white} />
+            <Plus size={22} color={Colors.white} />
           </View>
         </TouchableOpacity>
 
@@ -302,46 +395,150 @@ export default function LiveScoringScreen() {
 
         <View style={styles.quickActions}>
           <TouchableOpacity
-            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            style={[
+              styles.quickActionBtn,
+              isHomeTimeoutActive ? styles.quickActionBtnActive : null,
+              isGameEnded || (isAnyTimeoutActive && !isHomeTimeoutActive) || isAnyHalftimeActive
+                ? styles.disabledAction
+                : null,
+            ]}
             testID="home-timeout-button"
             onPress={() => handleTimeoutPress('home')}
-            disabled={isGameEnded}
+            disabled={
+              isGameEnded || (isAnyTimeoutActive && !isHomeTimeoutActive) || isAnyHalftimeActive
+            }
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: isHomeTimeoutActive ? Colors.white : Colors.warningLight },
+              ]}
+            >
               <Timer size={20} color={Colors.warning} />
             </View>
-            <Text style={styles.quickActionLabel}>{homeTeam.name.toUpperCase()}{'\n'}TIMEOUT</Text>
+            <Text
+              style={[
+                styles.quickActionLabel,
+                isHomeTimeoutActive ? styles.quickActionLabelActive : null,
+              ]}
+            >
+              {homeTeam.name.toUpperCase()}{'\n'}TIMEOUT
+            </Text>
+            <Text
+              style={[
+                styles.quickActionSubLabel,
+                isHomeTimeoutActive ? styles.quickActionSubLabelActive : null,
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              testID="home-timeout-count"
+            >
+              {`${homeTimeoutCounts.half} / Half ${period} - total ${homeTimeoutCounts.total}`}
+            </Text>
+            {isHomeTimeoutActive ? (
+              <Text style={styles.timeoutRunningClock} testID="home-timeout-clock">
+                {formatClock(timeoutElapsedSeconds)}
+              </Text>
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            style={[
+              styles.quickActionBtn,
+              isAwayTimeoutActive ? styles.quickActionBtnActive : null,
+              isGameEnded || (isAnyTimeoutActive && !isAwayTimeoutActive) || isAnyHalftimeActive
+                ? styles.disabledAction
+                : null,
+            ]}
             testID="away-timeout-button"
             onPress={() => handleTimeoutPress('away')}
-            disabled={isGameEnded}
+            disabled={
+              isGameEnded || (isAnyTimeoutActive && !isAwayTimeoutActive) || isAnyHalftimeActive
+            }
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: Colors.warningLight }]}>
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: isAwayTimeoutActive ? Colors.white : Colors.warningLight },
+              ]}
+            >
               <Timer size={20} color={Colors.warning} />
             </View>
-            <Text style={styles.quickActionLabel}>{awayTeam.name.toUpperCase()}{'\n'}TIMEOUT</Text>
+            <Text
+              style={[
+                styles.quickActionLabel,
+                isAwayTimeoutActive ? styles.quickActionLabelActive : null,
+              ]}
+            >
+              {awayTeam.name.toUpperCase()}{'\n'}TIMEOUT
+            </Text>
+            <Text
+              style={[
+                styles.quickActionSubLabel,
+                isAwayTimeoutActive ? styles.quickActionSubLabelActive : null,
+              ]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              testID="away-timeout-count"
+            >
+              {`${awayTimeoutCounts.half} / Half ${period} - total ${awayTimeoutCounts.total}`}
+            </Text>
+            {isAwayTimeoutActive ? (
+              <Text style={styles.timeoutRunningClock} testID="away-timeout-clock">
+                {formatClock(timeoutElapsedSeconds)}
+              </Text>
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            style={[
+              styles.quickActionBtn,
+              isAnyHalftimeActive ? styles.quickActionBtnActive : null,
+              isGameEnded ||
+              (hasHalftimeEvent && !isAnyHalftimeActive) ||
+              isAnyTimeoutActive
+                ? styles.disabledAction
+                : null,
+            ]}
             testID="half-button"
             onPress={handleHalftimePress}
-            disabled={isGameEnded || hasHalftimeEvent}
+            disabled={
+              isGameEnded || (hasHalftimeEvent && !isAnyHalftimeActive) || isAnyTimeoutActive
+            }
           >
-            <View style={[styles.quickActionIcon, { backgroundColor: Colors.gray100 }]}>
-              <Coffee size={20} color={Colors.textSecondary} />
+            <View
+              style={[
+                styles.quickActionIcon,
+                { backgroundColor: isAnyHalftimeActive ? Colors.white : Colors.gray100 },
+              ]}
+            >
+              <Coffee size={20} color={isAnyHalftimeActive ? Colors.warning : Colors.textSecondary} />
             </View>
-            <Text style={styles.quickActionLabel}>{hasHalftimeEvent ? 'HALF LOGGED' : 'HALF'}</Text>
+            <Text
+              style={[
+                styles.quickActionLabel,
+                isAnyHalftimeActive ? styles.quickActionLabelActive : null,
+              ]}
+            >
+              {hasHalftimeEvent && !isAnyHalftimeActive ? 'HALF LOGGED' : 'HALF'}
+            </Text>
+            {isAnyHalftimeActive ? (
+              <Text style={styles.timeoutRunningClock} testID="halftime-clock">
+                {formatClock(halftimeElapsedSeconds)}
+              </Text>
+            ) : null}
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.quickActionBtn, isGameEnded ? styles.disabledAction : null]}
+            style={[
+              styles.quickActionBtn,
+              isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive
+                ? styles.disabledAction
+                : null,
+            ]}
             testID="end-game-button"
             onPress={handleEndGamePress}
-            disabled={isGameEnded}
+            disabled={isGameEnded || isAnyTimeoutActive || isAnyHalftimeActive}
           >
             <View style={[styles.quickActionIcon, { backgroundColor: Colors.dangerLight }]}>
               <Flag size={20} color={Colors.danger} />
@@ -352,27 +549,27 @@ export default function LiveScoringScreen() {
       </ScrollView>
 
       <Modal
-        visible={!!pendingTimeout}
+        visible={!!pendingTimeoutStart}
         transparent
         animationType="fade"
-        onRequestClose={cancelPendingTimeout}
+        onRequestClose={cancelPendingTimeoutStart}
       >
-        <Pressable style={styles.timeoutModalOverlay} onPress={cancelPendingTimeout}>
+        <Pressable style={styles.timeoutModalOverlay} onPress={cancelPendingTimeoutStart}>
           <Pressable style={styles.timeoutModalCard} onPress={() => {}}>
             <Text style={styles.timeoutModalTitle}>
-              {pendingTimeout?.side === 'home' ? homeTeam.name : awayTeam.name} Timeout
+              {pendingTimeoutStart?.side === 'home' ? homeTeam.name : awayTeam.name} Timeout
             </Text>
-            <Text style={styles.timeoutModalSubtitle}>When was the timeout called?</Text>
+            <Text style={styles.timeoutModalSubtitle}>When did the timeout start?</Text>
 
-            <TouchableOpacity style={styles.timeoutOptionBtn} onPress={confirmTimeoutNow}>
+            <TouchableOpacity style={styles.timeoutOptionBtn} onPress={confirmTimeoutStartNow}>
               <Text style={styles.timeoutOptionLabel}>Right now</Text>
-              <Text style={styles.timeoutOptionTime}>{pendingTimeout?.currentTime}</Text>
+              <Text style={styles.timeoutOptionTime}>{pendingTimeoutStart?.currentTime}</Text>
             </TouchableOpacity>
 
             {lastGoalEvent && (
               <TouchableOpacity
                 style={[styles.timeoutOptionBtn, styles.timeoutOptionGoalBtn]}
-                onPress={confirmTimeoutAtGoal}
+                onPress={confirmTimeoutStartAtGoal}
               >
                 <Text style={[styles.timeoutOptionLabel, styles.timeoutOptionGoalLabel]}>
                   Same time as last goal
@@ -383,7 +580,7 @@ export default function LiveScoringScreen() {
               </TouchableOpacity>
             )}
 
-            <TouchableOpacity style={styles.timeoutCancelBtn} onPress={cancelPendingTimeout}>
+            <TouchableOpacity style={styles.timeoutCancelBtn} onPress={cancelPendingTimeoutStart}>
               <Text style={styles.timeoutCancelText}>Cancel</Text>
             </TouchableOpacity>
           </Pressable>
@@ -472,7 +669,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.primary,
     borderRadius: 20,
-    padding: 22,
+    padding: 16,
     marginBottom: 12,
   },
   scoreBtnLabel: {
@@ -482,21 +679,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   scoreBtnTeam: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 2,
   },
   scoreBtnAction: {
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 4,
   },
   scoreBtnPlus: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -507,7 +704,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.darkSecondary,
     borderRadius: 20,
-    padding: 22,
+    padding: 16,
     marginBottom: 12,
   },
   scoreBtnLabelDark: {
@@ -517,21 +714,21 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   scoreBtnTeamDark: {
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 2,
   },
   scoreBtnActionDark: {
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: '800' as const,
     color: Colors.white,
     marginTop: 4,
   },
   scoreBtnPlusDark: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -562,7 +759,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: Colors.white,
     borderRadius: 14,
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 4,
   },
   quickActionIcon: {
@@ -580,6 +777,32 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textAlign: 'center',
     lineHeight: 14,
+  },
+  quickActionSubLabel: {
+    fontSize: 9,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.2,
+    textAlign: 'center',
+    marginTop: 3,
+  },
+  quickActionSubLabelActive: {
+    color: 'rgba(255,255,255,0.85)',
+  },
+  quickActionBtnActive: {
+    backgroundColor: Colors.warning,
+    borderWidth: 2,
+    borderColor: Colors.warning,
+  },
+  quickActionLabelActive: {
+    color: Colors.white,
+  },
+  timeoutRunningClock: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    marginTop: 4,
+    letterSpacing: 0.5,
   },
   disabledCard: {
     opacity: 0.45,
