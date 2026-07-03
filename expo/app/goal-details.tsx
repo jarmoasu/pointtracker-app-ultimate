@@ -21,11 +21,16 @@ import { useGameSetup } from '@/app/game-setup-context';
 export default function GoalDetailsScreen() {
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { side, time, eventId } = useLocalSearchParams<{
+  const { side, time, eventId, startElapsedSeconds } = useLocalSearchParams<{
     side?: 'home' | 'away';
     time?: string;
     eventId?: string;
+    startElapsedSeconds?: string;
   }>();
+  const parsedStartElapsedSeconds = useMemo(() => {
+    const parsed = Number(startElapsedSeconds);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }, [startElapsedSeconds]);
   const { homeTeam, awayTeam, addGoalEvent, addPlayer, liveEvents, updateGoalEvent, startTimeoutEvent } =
     useGameSetup();
   const [scorerSearch, setScorerSearch] = useState<string>('');
@@ -216,7 +221,13 @@ export default function GoalDetailsScreen() {
       return;
     }
 
-    addGoalEvent({ side: scoringSide, scorer, assist, gameTime: baseGameTime });
+    addGoalEvent({
+      side: scoringSide,
+      scorer,
+      assist,
+      gameTime: baseGameTime,
+      startElapsedSeconds: parsedStartElapsedSeconds,
+    });
     console.log('GoalDetails: saved goal event', { scorer, assist, gameTime: baseGameTime, scoringSide });
     router.back();
   }, [
@@ -224,6 +235,7 @@ export default function GoalDetailsScreen() {
     editingEvent,
     editMinutes,
     editSeconds,
+    parsedStartElapsedSeconds,
     router,
     scoringSide,
     time,
@@ -238,8 +250,19 @@ export default function GoalDetailsScreen() {
 
     const baseGameTime = time ?? '--:--';
 
-    addGoalEvent({ side: scoringSide, scorer, assist, gameTime: baseGameTime });
-    startTimeoutEvent({ side: scoringSide, gameTime: baseGameTime, isBetweenPointsTimeout: true });
+    addGoalEvent({
+      side: scoringSide,
+      scorer,
+      assist,
+      gameTime: baseGameTime,
+      startElapsedSeconds: parsedStartElapsedSeconds,
+    });
+    startTimeoutEvent({
+      side: scoringSide,
+      gameTime: baseGameTime,
+      startElapsedSeconds: parsedStartElapsedSeconds,
+      isBetweenPointsTimeout: true,
+    });
     console.log('GoalDetails: saved goal and started timeout', {
       scorer,
       assist,
@@ -247,7 +270,7 @@ export default function GoalDetailsScreen() {
       scoringSide,
     });
     router.back();
-  }, [addGoalEvent, router, scoringSide, startTimeoutEvent, time, validateSelection]);
+  }, [addGoalEvent, parsedStartElapsedSeconds, router, scoringSide, startTimeoutEvent, time, validateSelection]);
 
   React.useEffect(() => {
     if (!eventId) return;

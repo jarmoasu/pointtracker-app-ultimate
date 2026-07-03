@@ -52,6 +52,8 @@ export default function LiveScoringScreen() {
     timeoutCallouts,
     timeoutBetweenPointsEnabled,
     timeoutBetweenPointsCallouts,
+    halftimeEnabled,
+    halftimeCallouts,
   } = useSettings();
   const period = hasHalftimeEvent ? 2 : 1;
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -61,9 +63,16 @@ export default function LiveScoringScreen() {
   const [pendingTimeoutStart, setPendingTimeoutStart] = useState<{
     side: 'home' | 'away';
     currentTime: string;
+    startElapsedSeconds: number;
   } | null>(null);
-  const [dismissedGoalEventId, setDismissedGoalEventId] = useState<string | null>(null);
+  const [dismissedBetweenPointsEventId, setDismissedBetweenPointsEventId] = useState<string | null>(
+    null,
+  );
   const [autoEndedTimeoutCallout, setAutoEndedTimeoutCallout] = useState<{
+    text: string;
+    endedAtElapsedSeconds: number;
+  } | null>(null);
+  const [autoEndedHalftimeCallout, setAutoEndedHalftimeCallout] = useState<{
     text: string;
     endedAtElapsedSeconds: number;
   } | null>(null);
@@ -78,67 +87,120 @@ export default function LiveScoringScreen() {
     [liveEvents],
   );
 
-  // Timeouts/halftime are marked with a game-clock start time (possibly
-  // backdated to the last goal), so the running badge counts from that
-  // game-clock moment rather than from real time at button-press — it rides
-  // the same ticking `elapsedSeconds` as the main clock, just offset by the
-  // recorded start.
+  const completedHalftimeEvent = useMemo(
+    () => liveEvents.find((e) => e.type === 'halftime' && e.isHalftimeActive === false) ?? null,
+    [liveEvents],
+  );
+
+  // Timeouts/halftime carry both a rounded-to-10s `gameClockSeconds` (for the
+  // log) and a raw `startElapsedSeconds` (for the running badge). The badge
+  // uses the raw value so it starts ticking the instant the button is
+  // pressed, rather than waiting for the main clock to catch up to the
+  // rounded value.
+  const getEventStartSeconds = useCallback((event: { startElapsedSeconds?: number; gameClockSeconds?: number }) => {
+    if (typeof event.startElapsedSeconds === 'number') return event.startElapsedSeconds;
+    if (typeof event.gameClockSeconds === 'number') return event.gameClockSeconds;
+    return null;
+  }, []);
+
+  // Same idea, but for the moment a completed halftime *ended* rather than
+  // started — that's the reference point "time between points" resumes
+  // counting from.
+  const getHalftimeEndSeconds = useCallback(
+    (event: { halftimeEndElapsedSeconds?: number; halftimeEndSeconds?: number }) => {
+      if (typeof event.halftimeEndElapsedSeconds === 'number') return event.halftimeEndElapsedSeconds;
+      if (typeof event.halftimeEndSeconds === 'number') return event.halftimeEndSeconds;
+      return null;
+    },
+    [],
+  );
+
+  // "Time between points" is keyed off whichever happened more recently: the
+  // last goal, or halftime ending. While halftime is running there's no
+  // trigger at all, which resets and stops the between-points clock; the
+  // instant halftime ends it becomes the new trigger, so the clock restarts
+  // from zero automatically without waiting for the next goal.
+  const timeBetweenPointsTriggerEvent = useMemo(() => {
+    if (activeHalftimeEvent) return null;
+    if (!completedHalftimeEvent) return lastGoalEvent;
+    if (!lastGoalEvent) return completedHalftimeEvent;
+
+    const goalIndex = liveEvents.indexOf(lastGoalEvent);
+    const halftimeIndex = liveEvents.indexOf(completedHalftimeEvent);
+    return goalIndex !== -1 && goalIndex < halftimeIndex ? lastGoalEvent : completedHalftimeEvent;
+  }, [activeHalftimeEvent, completedHalftimeEvent, lastGoalEvent, liveEvents]);
+
+  const getTimeBetweenPointsStartSeconds = useCallback(
+    (event: typeof timeBetweenPointsTriggerEvent) => {
+      if (!event) return null;
+      if (event.type === 'halftime') return getHalftimeEndSeconds(event);
+      return getEventStartSeconds(event);
+    },
+    [getEventStartSeconds, getHalftimeEndSeconds],
+  );
+
   const timeoutElapsedSeconds = useMemo(() => {
-    if (!activeTimeoutEvent || typeof activeTimeoutEvent.gameClockSeconds !== 'number') {
-      return 0;
-    }
-    return Math.max(0, elapsedSeconds - activeTimeoutEvent.gameClockSeconds);
-  }, [activeTimeoutEvent, elapsedSeconds]);
+    const startSeconds = activeTimeoutEvent ? getEventStartSeconds(activeTimeoutEvent) : null;
+    if (startSeconds === null) return 0;
+    return Math.max(0, elapsedSeconds - startSeconds);
+  }, [activeTimeoutEvent, elapsedSeconds, getEventStartSeconds]);
 
   const halftimeElapsedSeconds = useMemo(() => {
-    if (!activeHalftimeEvent || typeof activeHalftimeEvent.gameClockSeconds !== 'number') {
-      return 0;
-    }
-    return Math.max(0, elapsedSeconds - activeHalftimeEvent.gameClockSeconds);
-  }, [activeHalftimeEvent, elapsedSeconds]);
+    const startSeconds = activeHalftimeEvent ? getEventStartSeconds(activeHalftimeEvent) : null;
+    if (startSeconds === null) return 0;
+    return Math.max(0, elapsedSeconds - startSeconds);
+  }, [activeHalftimeEvent, elapsedSeconds, getEventStartSeconds]);
 
-  // Any timeout started since the last goal pauses "time between points":
-  // its duration (ongoing if still active, otherwise its recorded end - start)
-  // is subtracted from the raw elapsed-since-goal figure. Because an active
-  // timeout's own duration grows in lockstep with `elapsedSeconds`, the net
-  // result stays frozen for as long as it runs, then resumes from where it
-  // left off once the timeout ends.
+  // Any timeout started since the last trigger (goal or halftime ending)
+  // pauses "time between points": its duration (ongoing if still active,
+  // otherwise its recorded end - start) is subtracted from the raw
+  // elapsed-since-trigger figure. Because an active timeout's own duration
+  // grows in lockstep with `elapsedSeconds`, the net result stays frozen for
+  // as long as it runs, then resumes from where it left off once the
+  // timeout ends.
   const timeoutSecondsSinceLastGoal = useMemo(() => {
-    if (!lastGoalEvent || typeof lastGoalEvent.gameClockSeconds !== 'number') {
+    const triggerSeconds = getTimeBetweenPointsStartSeconds(timeBetweenPointsTriggerEvent);
+    if (triggerSeconds === null) {
       return 0;
     }
-    const goalSeconds = lastGoalEvent.gameClockSeconds;
     return liveEvents.reduce((sum, event) => {
-      if (event.type !== 'timeout' || typeof event.gameClockSeconds !== 'number') return sum;
-      if (event.gameClockSeconds < goalSeconds) return sum;
+      if (event.type !== 'timeout') return sum;
+      const startSeconds = getEventStartSeconds(event);
+      if (startSeconds === null || startSeconds < triggerSeconds) return sum;
       if (event.isTimeoutActive) {
-        return sum + Math.max(0, elapsedSeconds - event.gameClockSeconds);
+        return sum + Math.max(0, elapsedSeconds - startSeconds);
       }
-      if (typeof event.timeoutEndSeconds === 'number') {
+      if (typeof event.timeoutEndSeconds === 'number' && typeof event.gameClockSeconds === 'number') {
         return sum + Math.max(0, event.timeoutEndSeconds - event.gameClockSeconds);
       }
       return sum;
     }, 0);
-  }, [liveEvents, lastGoalEvent, elapsedSeconds]);
+  }, [liveEvents, timeBetweenPointsTriggerEvent, getTimeBetweenPointsStartSeconds, elapsedSeconds, getEventStartSeconds]);
 
   const timeSinceLastGoalSeconds = useMemo(() => {
-    if (!lastGoalEvent || typeof lastGoalEvent.gameClockSeconds !== 'number') {
+    const triggerSeconds = getTimeBetweenPointsStartSeconds(timeBetweenPointsTriggerEvent);
+    if (triggerSeconds === null) {
       return 0;
     }
-    const raw = elapsedSeconds - lastGoalEvent.gameClockSeconds;
+    const raw = elapsedSeconds - triggerSeconds;
     return Math.max(0, raw - timeoutSecondsSinceLastGoal);
-  }, [lastGoalEvent, elapsedSeconds, timeoutSecondsSinceLastGoal]);
+  }, [timeBetweenPointsTriggerEvent, getTimeBetweenPointsStartSeconds, elapsedSeconds, timeoutSecondsSinceLastGoal]);
 
-  // Reappears for every new goal (even if the previous one was dismissed)
-  // since it's keyed off the latest goal event's id, and hides once that
-  // specific goal has been dismissed.
+  // Reappears for every new trigger (even if the previous one was dismissed)
+  // since it's keyed off the trigger event's id, and hides once that
+  // specific trigger has been dismissed. While halftime is running there is
+  // no trigger at all (see `timeBetweenPointsTriggerEvent`), which hides —
+  // i.e. resets and stops — this banner; it reappears the instant halftime
+  // ends, ticking from zero, without needing a fresh goal.
   const isTimeBetweenPointsVisible =
-    !!lastGoalEvent && !isGameEnded && lastGoalEvent.id !== dismissedGoalEventId;
+    !!timeBetweenPointsTriggerEvent &&
+    !isGameEnded &&
+    timeBetweenPointsTriggerEvent.id !== dismissedBetweenPointsEventId;
 
   const handleDismissTimeBetweenPoints = useCallback(() => {
-    if (!lastGoalEvent) return;
-    setDismissedGoalEventId(lastGoalEvent.id);
-  }, [lastGoalEvent]);
+    if (!timeBetweenPointsTriggerEvent) return;
+    setDismissedBetweenPointsEventId(timeBetweenPointsTriggerEvent.id);
+  }, [timeBetweenPointsTriggerEvent]);
 
   // Callouts only fire while the between-points clock is actually ticking:
   // not dismissed, not game-ended, and not currently paused by a timeout or
@@ -202,6 +264,28 @@ export default function LiveScoringScreen() {
 
   const isAutoEndedTimeoutCalloutVisible =
     !!autoEndedTimeoutCallout && elapsedSeconds - autoEndedTimeoutCallout.endedAtElapsedSeconds < 5;
+
+  // Same mechanic as the timeout callouts: each call stays up for 5s once its
+  // threshold is crossed. The highest enabled callout's `seconds` also marks
+  // the halftime length, so a separate effect below auto-ends halftime once
+  // it's reached.
+  const activeHalftimeCallout = useMemo(() => {
+    if (!isAnyHalftimeActive || !halftimeEnabled) return null;
+
+    return (
+      halftimeCallouts
+        .filter(
+          (callout) =>
+            callout.enabled &&
+            halftimeElapsedSeconds >= callout.seconds &&
+            halftimeElapsedSeconds < callout.seconds + 5,
+        )
+        .sort((a, b) => b.seconds - a.seconds)[0] ?? null
+    );
+  }, [isAnyHalftimeActive, halftimeEnabled, halftimeCallouts, halftimeElapsedSeconds]);
+
+  const isAutoEndedHalftimeCalloutVisible =
+    !!autoEndedHalftimeCallout && elapsedSeconds - autoEndedHalftimeCallout.endedAtElapsedSeconds < 5;
 
   // liveEvents is newest-first. A timeout's index greater than the halftime
   // event's index happened before it (period 1); a smaller index happened
@@ -387,27 +471,47 @@ export default function LiveScoringScreen() {
   const handleScorePress = useCallback(
     (side: 'home' | 'away') => {
       const roundedTime = getRoundedGameTime();
-      router.push({ pathname: '/goal-details', params: { side, time: roundedTime } } as Href);
+      router.push({
+        pathname: '/goal-details',
+        params: { side, time: roundedTime, startElapsedSeconds: String(elapsedSeconds) },
+      } as Href);
     },
-    [getRoundedGameTime, router],
+    [elapsedSeconds, getRoundedGameTime, router],
   );
 
   const handleHalftimePress = useCallback(() => {
     if (activeHalftimeEvent) {
       const roundedTime = getRoundedGameTime();
-      const endedEvent = endHalftimeEvent(activeHalftimeEvent.id, { gameTime: roundedTime });
+      const endedEvent = endHalftimeEvent(activeHalftimeEvent.id, {
+        gameTime: roundedTime,
+        endElapsedSeconds: elapsedSeconds,
+      });
       console.log('LiveScoring halftime ended', endedEvent);
       return;
     }
 
     const startTime = lastGoalEvent?.gameTime ?? getRoundedGameTime();
-    const startedEvent = startHalftimeEvent({ gameTime: startTime });
+    const startElapsedSecondsValue = lastGoalEvent
+      ? (getEventStartSeconds(lastGoalEvent) ?? elapsedSeconds)
+      : elapsedSeconds;
+    const startedEvent = startHalftimeEvent({
+      gameTime: startTime,
+      startElapsedSeconds: startElapsedSecondsValue,
+    });
     if (!startedEvent) {
       Alert.alert('Half-time already logged', 'Only one half-time can be added per game.');
       return;
     }
     console.log('LiveScoring halftime started', startedEvent);
-  }, [activeHalftimeEvent, endHalftimeEvent, getRoundedGameTime, lastGoalEvent, startHalftimeEvent]);
+  }, [
+    activeHalftimeEvent,
+    elapsedSeconds,
+    endHalftimeEvent,
+    getEventStartSeconds,
+    getRoundedGameTime,
+    lastGoalEvent,
+    startHalftimeEvent,
+  ]);
 
   const handleTimeoutPress = useCallback(
     (side: 'home' | 'away') => {
@@ -422,9 +526,9 @@ export default function LiveScoringScreen() {
       }
 
       const roundedTime = getRoundedGameTime();
-      setPendingTimeoutStart({ side, currentTime: roundedTime });
+      setPendingTimeoutStart({ side, currentTime: roundedTime, startElapsedSeconds: elapsedSeconds });
     },
-    [activeTimeoutEvent, awayTeam, endTimeoutEvent, getRoundedGameTime, homeTeam],
+    [activeTimeoutEvent, awayTeam, elapsedSeconds, endTimeoutEvent, getRoundedGameTime, homeTeam],
   );
 
   const confirmTimeoutStartNow = useCallback(() => {
@@ -432,6 +536,7 @@ export default function LiveScoringScreen() {
     const startedEvent = startTimeoutEvent({
       side: pendingTimeoutStart.side,
       gameTime: pendingTimeoutStart.currentTime,
+      startElapsedSeconds: pendingTimeoutStart.startElapsedSeconds,
       isBetweenPointsTimeout: isTimeBetweenPointsVisible,
     });
     console.log('LiveScoring timeout started', startedEvent);
@@ -444,12 +549,13 @@ export default function LiveScoringScreen() {
     const startedEvent = startTimeoutEvent({
       side: pendingTimeoutStart.side,
       gameTime: lastGoalEvent.gameTime,
+      startElapsedSeconds: getEventStartSeconds(lastGoalEvent) ?? pendingTimeoutStart.startElapsedSeconds,
       isBetweenPointsTimeout: isTimeBetweenPointsVisible,
     });
     console.log('LiveScoring timeout started at goal time', startedEvent);
     setPendingTimeoutStart(null);
     setAutoEndedTimeoutCallout(null);
-  }, [pendingTimeoutStart, lastGoalEvent, startTimeoutEvent, isTimeBetweenPointsVisible]);
+  }, [pendingTimeoutStart, lastGoalEvent, getEventStartSeconds, startTimeoutEvent, isTimeBetweenPointsVisible]);
 
   const cancelPendingTimeoutStart = useCallback(() => {
     setPendingTimeoutStart(null);
@@ -481,6 +587,40 @@ export default function LiveScoringScreen() {
     timeoutBetweenPointsCallouts,
     timeoutElapsedSeconds,
     endTimeoutEvent,
+    getRoundedGameTime,
+    elapsedSeconds,
+  ]);
+
+  // Halftime has no "resume play" button press to end it either — it ends
+  // itself once its schedule's last enabled call has been made. Same
+  // mechanic as the timeout-between-points auto-end above: the triggering
+  // call is kept around in its own state so its banner can stay up for 5s
+  // independent of the halftime event, which is gone the instant it
+  // auto-ends.
+  useEffect(() => {
+    if (!activeHalftimeEvent || !halftimeEnabled) return;
+
+    const enabledCallouts = halftimeCallouts.filter((callout) => callout.enabled);
+    if (enabledCallouts.length === 0) return;
+
+    const lastCallout = enabledCallouts.reduce((latest, callout) =>
+      callout.seconds > latest.seconds ? callout : latest,
+    );
+    if (halftimeElapsedSeconds < lastCallout.seconds) return;
+
+    const roundedTime = getRoundedGameTime();
+    const endedEvent = endHalftimeEvent(activeHalftimeEvent.id, {
+      gameTime: roundedTime,
+      endElapsedSeconds: elapsedSeconds,
+    });
+    setAutoEndedHalftimeCallout({ text: lastCallout.text, endedAtElapsedSeconds: elapsedSeconds });
+    console.log('LiveScoring halftime auto-ended', endedEvent);
+  }, [
+    activeHalftimeEvent,
+    halftimeEnabled,
+    halftimeCallouts,
+    halftimeElapsedSeconds,
+    endHalftimeEvent,
     getRoundedGameTime,
     elapsedSeconds,
   ]);
@@ -581,6 +721,16 @@ export default function LiveScoringScreen() {
         ) : isAutoEndedTimeoutCalloutVisible && autoEndedTimeoutCallout ? (
           <View style={styles.calloutBanner} testID="timeout-callout-banner">
             <Text style={styles.calloutBannerText}>{autoEndedTimeoutCallout.text}</Text>
+          </View>
+        ) : null}
+
+        {activeHalftimeCallout ? (
+          <View style={styles.calloutBanner} testID="halftime-callout-banner">
+            <Text style={styles.calloutBannerText}>{activeHalftimeCallout.text}</Text>
+          </View>
+        ) : isAutoEndedHalftimeCalloutVisible && autoEndedHalftimeCallout ? (
+          <View style={styles.calloutBanner} testID="halftime-callout-banner">
+            <Text style={styles.calloutBannerText}>{autoEndedHalftimeCallout.text}</Text>
           </View>
         ) : null}
 

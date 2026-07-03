@@ -46,6 +46,11 @@ export interface GameEvent {
   assistName?: string;
   gameTime: string;
   gameClockSeconds?: number;
+  // Raw (unrounded) elapsed-seconds captured at the moment the triggering
+  // button was pressed. Drives live running-timer displays so they start
+  // ticking immediately, while `gameClockSeconds` keeps the rounded-to-10s
+  // value used for the log/backend.
+  startElapsedSeconds?: number;
   scoreAtEvent?: GameScore;
   description?: string;
   isSynced: boolean;
@@ -64,6 +69,10 @@ export interface GameEvent {
   isHalftimeActive?: boolean;
   halftimeEndTime?: string;
   halftimeEndSeconds?: number;
+  // Raw (unrounded) elapsed-seconds captured when halftime ended — lets
+  // "time between points" resume ticking immediately afterward instead of
+  // waiting for the rounded `halftimeEndSeconds` value.
+  halftimeEndElapsedSeconds?: number;
   halftimeDurationSeconds?: number;
 }
 

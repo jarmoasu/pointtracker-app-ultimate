@@ -7,6 +7,7 @@ import { CalloutSetting } from '@/types/settings';
 const TIME_BETWEEN_POINTS_KEY = 'pointtracker.settings.timeBetweenPoints.v1';
 const TIMEOUT_KEY = 'pointtracker.settings.timeout.v1';
 const TIMEOUT_BETWEEN_POINTS_KEY = 'pointtracker.settings.timeoutBetweenPoints.v1';
+const HALFTIME_KEY = 'pointtracker.settings.halftime.v1';
 
 const createId = () => `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -25,6 +26,13 @@ const DEFAULT_TIMEOUT_CALLOUTS: CalloutSetting[] = [
 
 const DEFAULT_TIMEOUT_BETWEEN_POINTS_CALLOUTS: CalloutSetting[] = [
   { id: createId(), seconds: 60, text: 'Timeout ended - time between points!', enabled: true },
+];
+
+// The highest enabled callout's `seconds` also doubles as the halftime
+// duration: once elapsed time reaches it, the halftime auto-ends.
+const DEFAULT_HALFTIME_CALLOUTS: CalloutSetting[] = [
+  { id: createId(), seconds: 45, text: 'Puoliaikaa 15 sekuntia jäljellä!', enabled: true },
+  { id: createId(), seconds: 60, text: 'Puoliaika päättynyt!', enabled: true },
 ];
 
 type CalloutGroupSettings = {
@@ -106,6 +114,7 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     TIMEOUT_BETWEEN_POINTS_KEY,
     DEFAULT_TIMEOUT_BETWEEN_POINTS_CALLOUTS,
   );
+  const halftime = useCalloutGroup(HALFTIME_KEY, DEFAULT_HALFTIME_CALLOUTS);
 
   return {
     timeBetweenPointsEnabled: timeBetweenPoints.enabled,
@@ -122,5 +131,10 @@ export const [SettingsProvider, useSettings] = createContextHook(() => {
     timeoutBetweenPointsCallouts: timeoutBetweenPoints.callouts,
     setTimeoutBetweenPointsEnabled: timeoutBetweenPoints.setEnabled,
     updateTimeoutBetweenPointsCallout: timeoutBetweenPoints.updateCallout,
+
+    halftimeEnabled: halftime.enabled,
+    halftimeCallouts: halftime.callouts,
+    setHalftimeEnabled: halftime.setEnabled,
+    updateHalftimeCallout: halftime.updateCallout,
   };
 });

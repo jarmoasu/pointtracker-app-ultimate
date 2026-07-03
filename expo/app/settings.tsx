@@ -110,16 +110,21 @@ export default function SettingsScreen() {
     timeoutBetweenPointsCallouts,
     setTimeoutBetweenPointsEnabled,
     updateTimeoutBetweenPointsCallout,
+    halftimeEnabled,
+    halftimeCallouts,
+    setHalftimeEnabled,
+    updateHalftimeCallout,
   } = useSettings();
 
   const allGroupsEnabled =
-    timeBetweenPointsEnabled && timeoutEnabled && timeoutBetweenPointsEnabled;
+    timeBetweenPointsEnabled && timeoutEnabled && timeoutBetweenPointsEnabled && halftimeEnabled;
 
   const handleToggleAll = () => {
     const nextEnabled = !allGroupsEnabled;
     setTimeBetweenPointsEnabled(nextEnabled);
     setTimeoutEnabled(nextEnabled);
     setTimeoutBetweenPointsEnabled(nextEnabled);
+    setHalftimeEnabled(nextEnabled);
   };
 
   return (
@@ -182,6 +187,16 @@ export default function SettingsScreen() {
           callouts={timeoutBetweenPointsCallouts}
           onToggleGroup={setTimeoutBetweenPointsEnabled}
           onUpdateCallout={updateTimeoutBetweenPointsCallout}
+        />
+
+        <CalloutGroupCard
+          testIDPrefix="halftime"
+          title="Halftime"
+          description="Prompts the marker as halftime runs out. The highest enabled time also sets the halftime length — once reached, halftime ends automatically and the last call stays up for 5 seconds."
+          enabled={halftimeEnabled}
+          callouts={halftimeCallouts}
+          onToggleGroup={setHalftimeEnabled}
+          onUpdateCallout={updateHalftimeCallout}
         />
       </ScrollView>
     </KeyboardAvoidingView>
