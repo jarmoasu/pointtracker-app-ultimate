@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { activateKeepAwake, deactivateKeepAwake } from "expo-keep-awake";
 
 import { GameSetupProvider, useGameSetup } from "./game-setup-context";
+import { SettingsProvider } from "./settings-context";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,6 +43,12 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="settings"
+        options={{
+          headerShown: true,
+        }}
+      />
       <Stack.Screen
         name="game-history"
         options={{
@@ -107,8 +114,10 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView>
         <GameSetupProvider>
-          <GameKeepAwake />
-          <RootLayoutNav />
+          <SettingsProvider>
+            <GameKeepAwake />
+            <RootLayoutNav />
+          </SettingsProvider>
         </GameSetupProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

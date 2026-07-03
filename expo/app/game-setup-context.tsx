@@ -404,7 +404,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
   );
 
   const startTimeoutEvent = useCallback(
-    (params: { side: TeamSide; gameTime: string }) => {
+    (params: { side: TeamSide; gameTime: string; isBetweenPointsTimeout?: boolean }) => {
       if (activeTimeoutEvent) {
         console.log('GameSetup timeout already active, ignoring start', {
           activeTimeoutEventId: activeTimeoutEvent.id,
@@ -425,6 +425,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         gameTime: params.gameTime,
         gameClockSeconds: parseClockToSeconds(params.gameTime) ?? undefined,
         isTimeoutActive: true,
+        isBetweenPointsTimeout: params.isBetweenPointsTimeout ?? false,
         description: `${team.name} timeout`,
         isSynced: false,
       };

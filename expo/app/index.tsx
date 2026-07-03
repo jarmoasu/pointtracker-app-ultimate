@@ -10,7 +10,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import type { Href } from 'expo-router';
-import { ChevronRight, PlusCircle } from 'lucide-react-native';
+import { ChevronRight, PlusCircle, Settings } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
@@ -138,6 +138,11 @@ export default function HomeScreen() {
     router.push('/game-history' as Href);
   }, [router]);
 
+  const handleSettingsPress = useCallback(() => {
+    console.log('[HomeScreen] Navigate to settings');
+    router.push('/settings' as Href);
+  }, [router]);
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView
@@ -160,6 +165,14 @@ export default function HomeScreen() {
               <Text style={styles.headerSubtitle}>Ultimate Point Streamer</Text>
             </View>
           </View>
+          <TouchableOpacity
+            onPress={handleSettingsPress}
+            style={styles.settingsButton}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            testID="settings-button"
+          >
+            <Settings size={24} color={Colors.dark} />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
@@ -237,6 +250,9 @@ const styles = StyleSheet.create({
   },
   headerTitles: {
     flexDirection: 'column',
+  },
+  settingsButton: {
+    padding: 6,
   },
   logoContainer: {
     width: 64,

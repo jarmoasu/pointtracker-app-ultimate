@@ -55,6 +55,9 @@ export interface GameEvent {
   timeoutEndTime?: string;
   timeoutEndSeconds?: number;
   timeoutDurationSeconds?: number;
+  // True when this timeout was started while still in the between-points
+  // window (i.e. before the next point had resumed play).
+  isBetweenPointsTimeout?: boolean;
   // Halftime-specific fields (type === 'halftime'). `gameTime`/`gameClockSeconds`
   // above hold the halftime START time (always the last goal's time); these
   // hold the end/running state.

@@ -29,6 +29,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Colors from '@/constants/colors';
 import { Player } from '@/types/game';
 import { useGameSetup, TeamSide } from '@/app/game-setup-context';
+import SettingsButton from '@/components/SettingsButton';
 
 type CsvRosterRow = { teamName: string; playerName: string; jerseyNumber: string };
 
@@ -548,6 +549,7 @@ export default function GameSetupScreen() {
           headerTitleStyle: { fontWeight: '700' as const, color: Colors.dark },
           headerStyle: { backgroundColor: Colors.white },
           headerTintColor: Colors.dark,
+          headerRight: () => <SettingsButton />,
         }}
       />
       <ScrollView

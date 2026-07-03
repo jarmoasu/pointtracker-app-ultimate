@@ -239,7 +239,7 @@ export default function GoalDetailsScreen() {
     const baseGameTime = time ?? '--:--';
 
     addGoalEvent({ side: scoringSide, scorer, assist, gameTime: baseGameTime });
-    startTimeoutEvent({ side: scoringSide, gameTime: baseGameTime });
+    startTimeoutEvent({ side: scoringSide, gameTime: baseGameTime, isBetweenPointsTimeout: true });
     console.log('GoalDetails: saved goal and started timeout', {
       scorer,
       assist,

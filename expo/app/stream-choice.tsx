@@ -5,6 +5,7 @@ import type { Href } from 'expo-router';
 import { Wifi, Smartphone } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
+import SettingsButton from '@/components/SettingsButton';
 
 export default function StreamChoiceScreen() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function StreamChoiceScreen() {
           headerTitleStyle: { fontWeight: '700' as const, color: Colors.dark },
           headerStyle: { backgroundColor: Colors.white },
           headerTintColor: Colors.dark,
+          headerRight: () => <SettingsButton />,
         }}
       />
       <View style={styles.content}>

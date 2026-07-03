@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
+import { useSettings } from '@/app/settings-context';
+import SettingsButton from '@/components/SettingsButton';
 
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
@@ -43,6 +45,14 @@ export default function LiveScoringScreen() {
     isGameEnded,
     endGame,
   } = useGameSetup();
+  const {
+    timeBetweenPointsEnabled,
+    timeBetweenPointsCallouts,
+    timeoutEnabled,
+    timeoutCallouts,
+    timeoutBetweenPointsEnabled,
+    timeoutBetweenPointsCallouts,
+  } = useSettings();
   const period = hasHalftimeEvent ? 2 : 1;
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [isClockRunning, setIsClockRunning] = useState<boolean>(true);
@@ -53,6 +63,10 @@ export default function LiveScoringScreen() {
     currentTime: string;
   } | null>(null);
   const [dismissedGoalEventId, setDismissedGoalEventId] = useState<string | null>(null);
+  const [autoEndedTimeoutCallout, setAutoEndedTimeoutCallout] = useState<{
+    text: string;
+    endedAtElapsedSeconds: number;
+  } | null>(null);
 
   const isHomeTimeoutActive = activeTimeoutEvent?.teamId === homeTeam.id;
   const isAwayTimeoutActive = activeTimeoutEvent?.teamId === awayTeam.id;
@@ -125,6 +139,69 @@ export default function LiveScoringScreen() {
     if (!lastGoalEvent) return;
     setDismissedGoalEventId(lastGoalEvent.id);
   }, [lastGoalEvent]);
+
+  // Callouts only fire while the between-points clock is actually ticking:
+  // not dismissed, not game-ended, and not currently paused by a timeout or
+  // halftime. Each callout stays up for 15s after its threshold is crossed;
+  // when several thresholds are eligible at once the latest one wins.
+  const activeTimeBetweenPointsCallout = useMemo(() => {
+    if (!timeBetweenPointsEnabled || !isTimeBetweenPointsVisible) return null;
+    if (isAnyTimeoutActive || isAnyHalftimeActive) return null;
+
+    return (
+      timeBetweenPointsCallouts
+        .filter(
+          (callout) =>
+            callout.enabled &&
+            timeSinceLastGoalSeconds >= callout.seconds &&
+            timeSinceLastGoalSeconds < callout.seconds + 15,
+        )
+        .sort((a, b) => b.seconds - a.seconds)[0] ?? null
+    );
+  }, [
+    timeBetweenPointsEnabled,
+    timeBetweenPointsCallouts,
+    isTimeBetweenPointsVisible,
+    isAnyTimeoutActive,
+    isAnyHalftimeActive,
+    timeSinceLastGoalSeconds,
+  ]);
+
+  // Same mechanic as the between-points callouts, but keyed off time since
+  // the active timeout started, and each callout only stays up for 5s. A
+  // timeout taken between points (before the next point resumed play) uses
+  // the "Timeout between points" special-rule schedule instead of the
+  // regular one.
+  const activeTimeoutCallout = useMemo(() => {
+    if (!isAnyTimeoutActive) return null;
+
+    const isBetweenPoints = !!activeTimeoutEvent?.isBetweenPointsTimeout;
+    const groupEnabled = isBetweenPoints ? timeoutBetweenPointsEnabled : timeoutEnabled;
+    const callouts = isBetweenPoints ? timeoutBetweenPointsCallouts : timeoutCallouts;
+    if (!groupEnabled) return null;
+
+    return (
+      callouts
+        .filter(
+          (callout) =>
+            callout.enabled &&
+            timeoutElapsedSeconds >= callout.seconds &&
+            timeoutElapsedSeconds < callout.seconds + 5,
+        )
+        .sort((a, b) => b.seconds - a.seconds)[0] ?? null
+    );
+  }, [
+    isAnyTimeoutActive,
+    activeTimeoutEvent,
+    timeoutEnabled,
+    timeoutCallouts,
+    timeoutBetweenPointsEnabled,
+    timeoutBetweenPointsCallouts,
+    timeoutElapsedSeconds,
+  ]);
+
+  const isAutoEndedTimeoutCalloutVisible =
+    !!autoEndedTimeoutCallout && elapsedSeconds - autoEndedTimeoutCallout.endedAtElapsedSeconds < 5;
 
   // liveEvents is newest-first. A timeout's index greater than the halftime
   // event's index happened before it (period 1); a smaller index happened
@@ -355,24 +432,58 @@ export default function LiveScoringScreen() {
     const startedEvent = startTimeoutEvent({
       side: pendingTimeoutStart.side,
       gameTime: pendingTimeoutStart.currentTime,
+      isBetweenPointsTimeout: isTimeBetweenPointsVisible,
     });
     console.log('LiveScoring timeout started', startedEvent);
     setPendingTimeoutStart(null);
-  }, [pendingTimeoutStart, startTimeoutEvent]);
+    setAutoEndedTimeoutCallout(null);
+  }, [pendingTimeoutStart, startTimeoutEvent, isTimeBetweenPointsVisible]);
 
   const confirmTimeoutStartAtGoal = useCallback(() => {
     if (!pendingTimeoutStart || !lastGoalEvent) return;
     const startedEvent = startTimeoutEvent({
       side: pendingTimeoutStart.side,
       gameTime: lastGoalEvent.gameTime,
+      isBetweenPointsTimeout: isTimeBetweenPointsVisible,
     });
     console.log('LiveScoring timeout started at goal time', startedEvent);
     setPendingTimeoutStart(null);
-  }, [pendingTimeoutStart, lastGoalEvent, startTimeoutEvent]);
+    setAutoEndedTimeoutCallout(null);
+  }, [pendingTimeoutStart, lastGoalEvent, startTimeoutEvent, isTimeBetweenPointsVisible]);
 
   const cancelPendingTimeoutStart = useCallback(() => {
     setPendingTimeoutStart(null);
   }, []);
+
+  // Special rule: a timeout taken between points has no "resume play"
+  // button press to end it — it ends itself once its schedule's last
+  // enabled call has been made. The triggering call is kept around in its
+  // own state so its banner can stay up for 5s independent of the timeout
+  // event, which is gone the instant it auto-ends.
+  useEffect(() => {
+    if (!activeTimeoutEvent?.isBetweenPointsTimeout || !timeoutBetweenPointsEnabled) return;
+
+    const enabledCallouts = timeoutBetweenPointsCallouts.filter((callout) => callout.enabled);
+    if (enabledCallouts.length === 0) return;
+
+    const lastCallout = enabledCallouts.reduce((latest, callout) =>
+      callout.seconds > latest.seconds ? callout : latest,
+    );
+    if (timeoutElapsedSeconds < lastCallout.seconds) return;
+
+    const roundedTime = getRoundedGameTime();
+    const endedEvent = endTimeoutEvent(activeTimeoutEvent.id, { gameTime: roundedTime });
+    setAutoEndedTimeoutCallout({ text: lastCallout.text, endedAtElapsedSeconds: elapsedSeconds });
+    console.log('LiveScoring timeout auto-ended (between points)', endedEvent);
+  }, [
+    activeTimeoutEvent,
+    timeoutBetweenPointsEnabled,
+    timeoutBetweenPointsCallouts,
+    timeoutElapsedSeconds,
+    endTimeoutEvent,
+    getRoundedGameTime,
+    elapsedSeconds,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -400,7 +511,7 @@ export default function LiveScoringScreen() {
               </TouchableOpacity>
             ) : null,
           headerBackVisible: false,
-          headerRight: () => null,
+          headerRight: () => <SettingsButton />,
         }}
       />
       <ScrollView
@@ -437,20 +548,40 @@ export default function LiveScoringScreen() {
         </View>
 
         {isTimeBetweenPointsVisible ? (
-          <TouchableOpacity
-            style={styles.timeBetweenPointsBtn}
-            activeOpacity={0.8}
-            onPress={handleDismissTimeBetweenPoints}
-            testID="time-between-points-button"
-          >
-            <View style={styles.timeBetweenPointsRow}>
-              <Text style={styles.timeBetweenPointsLabel}>Time between points</Text>
-              <Text style={styles.timeBetweenPointsValue}>
-                {formatClock(timeSinceLastGoalSeconds)}
-              </Text>
-            </View>
-            <Text style={styles.timeBetweenPointsHint}>Press and I&apos;ll disappear</Text>
-          </TouchableOpacity>
+          <>
+            <TouchableOpacity
+              style={styles.timeBetweenPointsBtn}
+              activeOpacity={0.8}
+              onPress={handleDismissTimeBetweenPoints}
+              testID="time-between-points-button"
+            >
+              <View style={styles.timeBetweenPointsRow}>
+                <Text style={styles.timeBetweenPointsLabel}>Time between points</Text>
+                <Text style={styles.timeBetweenPointsValue}>
+                  {formatClock(timeSinceLastGoalSeconds)}
+                </Text>
+              </View>
+              <Text style={styles.timeBetweenPointsHint}>Press after the pull</Text>
+            </TouchableOpacity>
+
+            {activeTimeBetweenPointsCallout ? (
+              <View style={styles.calloutBanner} testID="time-between-points-callout-banner">
+                <Text style={styles.calloutBannerText}>
+                  {activeTimeBetweenPointsCallout.text}
+                </Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {activeTimeoutCallout ? (
+          <View style={styles.calloutBanner} testID="timeout-callout-banner">
+            <Text style={styles.calloutBannerText}>{activeTimeoutCallout.text}</Text>
+          </View>
+        ) : isAutoEndedTimeoutCalloutVisible && autoEndedTimeoutCallout ? (
+          <View style={styles.calloutBanner} testID="timeout-callout-banner">
+            <Text style={styles.calloutBannerText}>{autoEndedTimeoutCallout.text}</Text>
+          </View>
         ) : null}
 
         <TouchableOpacity
@@ -812,6 +943,20 @@ const styles = StyleSheet.create({
     fontWeight: '500' as const,
     color: Colors.textSecondary,
     fontStyle: 'italic',
+  },
+  calloutBanner: {
+    backgroundColor: Colors.warning,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    alignItems: 'center',
+  },
+  calloutBannerText: {
+    fontSize: 20,
+    fontWeight: '800' as const,
+    color: Colors.white,
+    letterSpacing: 0.5,
   },
   homeScoreBtn: {
     flexDirection: 'row',

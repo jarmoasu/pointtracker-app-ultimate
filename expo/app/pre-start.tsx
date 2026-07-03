@@ -6,6 +6,7 @@ import { Play, AlertCircle } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
+import SettingsButton from '@/components/SettingsButton';
 
 const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
 
@@ -113,6 +114,7 @@ export default function PreStartScreen() {
           headerTitleStyle: { fontWeight: '700' as const, color: Colors.dark },
           headerStyle: { backgroundColor: Colors.white },
           headerTintColor: Colors.dark,
+          headerRight: () => <SettingsButton />,
         }}
       />
 
