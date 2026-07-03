@@ -1,18 +1,22 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Share,
+  Alert,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Clock, Play, Coffee } from 'lucide-react-native';
+import { Clock, Play, Coffee, PenLine, CheckCircle2, Share2 } from 'lucide-react-native';
 
 import Colors from '@/constants/colors';
 import { mockGameEvents } from '@/mocks/games';
-import { GameEvent } from '@/types/game';
+import { CaptainSignature, GameEvent } from '@/types/game';
 import { useGameSetup } from '@/app/game-setup-context';
+import { buildResultShareText } from '@/utils/resultShareText';
 
 function ScoreHeader({
   game,
@@ -49,6 +53,142 @@ function SectionDivider({ label }: { label: string }) {
       <View style={styles.dividerLine} />
       <Text style={styles.dividerText}>{label}</Text>
       <View style={styles.dividerLine} />
+    </View>
+  );
+}
+
+function CaptainSignatureCard({
+  side,
+  teamLabel,
+  signature,
+  onSign,
+}: {
+  side: 'home' | 'away';
+  teamLabel: string;
+  signature?: CaptainSignature;
+  onSign: (name: string, number: string) => void;
+}) {
+  const [name, setName] = useState('');
+  const [number, setNumber] = useState('');
+  const canSign = name.trim().length > 0 && number.trim().length > 0;
+
+  if (signature) {
+    const signedDate = new Date(signature.signedAt);
+    return (
+      <View style={styles.signatureCard} testID={`captain-signature-${side}-signed`}>
+        <View style={styles.signatureHeader}>
+          <CheckCircle2 size={18} color={Colors.success} />
+          <Text style={styles.signatureTeamLabel}>{teamLabel} CAPTAIN</Text>
+        </View>
+        <Text style={styles.signatureSignedName}>
+          {signature.name} #{signature.number}
+        </Text>
+        <Text style={styles.signatureSignedTime}>
+          Signed {signedDate.toLocaleDateString()} at{' '}
+          {signedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.signatureCard} testID={`captain-signature-${side}-form`}>
+      <View style={styles.signatureHeader}>
+        <PenLine size={18} color={Colors.textTertiary} />
+        <Text style={styles.signatureTeamLabel}>{teamLabel} CAPTAIN</Text>
+      </View>
+
+      <Text style={styles.inputLabel}>NAME</Text>
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="Captain name"
+          placeholderTextColor={Colors.textTertiary}
+          value={name}
+          onChangeText={setName}
+          returnKeyType="done"
+          testID={`captain-signature-${side}-name-input`}
+        />
+      </View>
+
+      <Text style={styles.inputLabel}>NUMBER</Text>
+      <View style={styles.inputRow}>
+        <TextInput
+          style={styles.input}
+          placeholder="00"
+          placeholderTextColor={Colors.textTertiary}
+          value={number}
+          onChangeText={setNumber}
+          keyboardType="number-pad"
+          returnKeyType="done"
+          testID={`captain-signature-${side}-number-input`}
+        />
+      </View>
+
+      <TouchableOpacity
+        style={[styles.signButton, !canSign && styles.signButtonDisabled]}
+        onPress={() => {
+          if (!canSign) return;
+          onSign(name, number);
+          setName('');
+          setNumber('');
+        }}
+        disabled={!canSign}
+        testID={`captain-signature-${side}-submit`}
+      >
+        <Text style={styles.signButtonText}>Sign as captain</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function AttackStartPicker({
+  homeLabel,
+  awayLabel,
+  value,
+  onSelect,
+}: {
+  homeLabel: string;
+  awayLabel: string;
+  value?: 'home' | 'away';
+  onSelect: (side: 'home' | 'away') => void;
+}) {
+  return (
+    <View style={styles.signatureCard} testID="attack-start-picker">
+      <View style={styles.signatureHeader}>
+        <Play size={18} color={Colors.textTertiary} />
+        <Text style={styles.signatureTeamLabel}>TEAM THAT STARTED ON OFFENSE</Text>
+      </View>
+      <View style={styles.attackStartRow}>
+        <TouchableOpacity
+          style={[styles.attackStartOption, value === 'home' && styles.attackStartOptionSelected]}
+          onPress={() => onSelect('home')}
+          testID="attack-start-home-button"
+        >
+          <Text
+            style={[
+              styles.attackStartOptionText,
+              value === 'home' && styles.attackStartOptionTextSelected,
+            ]}
+          >
+            {homeLabel}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.attackStartOption, value === 'away' && styles.attackStartOptionSelected]}
+          onPress={() => onSelect('away')}
+          testID="attack-start-away-button"
+        >
+          <Text
+            style={[
+              styles.attackStartOptionText,
+              value === 'away' && styles.attackStartOptionTextSelected,
+            ]}
+          >
+            {awayLabel}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -183,18 +323,34 @@ export default function PastGameLogScreen() {
   const router = useRouter();
   const { gameId } = useLocalSearchParams<{ gameId?: string }>();
   const selectedGameId = gameId ?? null;
-  const { pastGames, pastGameEvents } = useGameSetup();
+  const { pastGames, pastGameEvents, signPastGame, setPastGameAttackStartTeam } = useGameSetup();
 
   const game = useMemo(
     () => pastGames.find((item) => item.id === selectedGameId) ?? null,
     [pastGames, selectedGameId],
   );
-  const events = selectedGameId ? pastGameEvents[selectedGameId] ?? [] : [];
+  const events = useMemo(
+    () => (selectedGameId ? pastGameEvents[selectedGameId] ?? [] : []),
+    [pastGameEvents, selectedGameId],
+  );
   const logEvents = events.length > 0 ? events : mockGameEvents;
-  const justNowEvents = logEvents.slice(0, 2);
-  const earlierEvents = logEvents.slice(2);
+  const chronologicalLogEvents = useMemo(() => [...logEvents].reverse(), [logEvents]);
   const hasGame = Boolean(game);
   const hasEvents = logEvents.length > 0;
+  const canShareResults = Boolean(
+    game?.homeCaptainSignature && game?.awayCaptainSignature && game?.attackStartTeam,
+  );
+
+  const handleShareResults = useCallback(async () => {
+    if (!game) return;
+    const text = buildResultShareText(game, events);
+    try {
+      await Share.share({ message: text });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unknown error';
+      Alert.alert('Share failed', message);
+    }
+  }, [game, events]);
 
   return (
     <View style={styles.container}>
@@ -226,19 +382,55 @@ export default function PastGameLogScreen() {
           <>
             <ScoreHeader game={game} />
 
+            <SectionDivider label="CAPTAIN SIGNATURES" />
+            <CaptainSignatureCard
+              side="home"
+              teamLabel={game?.homeTeam.abbreviation ?? 'HOME'}
+              signature={game?.homeCaptainSignature}
+              onSign={(name, number) => {
+                if (game) signPastGame(game.id, 'home', { name, number });
+              }}
+            />
+            <CaptainSignatureCard
+              side="away"
+              teamLabel={game?.awayTeam.abbreviation ?? 'AWAY'}
+              signature={game?.awayCaptainSignature}
+              onSign={(name, number) => {
+                if (game) signPastGame(game.id, 'away', { name, number });
+              }}
+            />
+            <AttackStartPicker
+              homeLabel={game?.homeTeam.abbreviation ?? 'HOME'}
+              awayLabel={game?.awayTeam.abbreviation ?? 'AWAY'}
+              value={game?.attackStartTeam}
+              onSelect={(side) => {
+                if (game) setPastGameAttackStartTeam(game.id, side);
+              }}
+            />
+
+            {canShareResults ? (
+              <TouchableOpacity
+                style={styles.shareResultsButton}
+                onPress={handleShareResults}
+                testID="share-results-button"
+              >
+                <Share2 size={18} color={Colors.white} />
+                <Text style={styles.shareResultsButtonText}>Share results</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.shareResultsHint} testID="share-results-hint">
+                <Text style={styles.shareResultsHintText}>
+                  Both captains must sign and the team that started on offense must be selected
+                  before results can be shared.
+                </Text>
+              </View>
+            )}
+
             {hasEvents ? (
               <>
-                <SectionDivider label="JUST NOW" />
+                <SectionDivider label="GAME LOG" />
 
-                {justNowEvents.map((event) => {
-                  if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
-                  if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
-                  if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
-                  if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
-                  return null;
-                })}
-
-                {earlierEvents.map((event) => {
+                {chronologicalLogEvents.map((event) => {
                   if (event.type === 'goal') return <GoalEventCard key={event.id} event={event} />;
                   if (event.type === 'timeout') return <TimeoutEvent key={event.id} event={event} />;
                   if (event.type === 'halftime') return <HalftimeEvent key={event.id} event={event} />;
@@ -310,6 +502,129 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.8,
     marginTop: 2,
+  },
+  signatureCard: {
+    backgroundColor: Colors.white,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+  },
+  signatureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  signatureTeamLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.6,
+  },
+  signatureSignedName: {
+    fontSize: 16,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+  },
+  signatureSignedTime: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  inputLabel: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+    marginBottom: 8,
+    marginTop: 4,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.gray100,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: Colors.dark,
+  },
+  signButton: {
+    backgroundColor: Colors.dark,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  signButtonDisabled: {
+    backgroundColor: Colors.gray300,
+  },
+  signButtonText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 0.4,
+  },
+  attackStartRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  attackStartOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: Colors.gray300,
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attackStartOptionSelected: {
+    backgroundColor: Colors.dark,
+    borderColor: Colors.dark,
+  },
+  attackStartOptionText: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: Colors.dark,
+    letterSpacing: 0.4,
+  },
+  attackStartOptionTextSelected: {
+    color: Colors.white,
+  },
+  shareResultsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary,
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 8,
+  },
+  shareResultsButtonText: {
+    fontSize: 14,
+    fontWeight: '700' as const,
+    color: Colors.white,
+    letterSpacing: 0.4,
+  },
+  shareResultsHint: {
+    backgroundColor: Colors.gray100,
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 8,
+  },
+  shareResultsHintText: {
+    fontSize: 12,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    lineHeight: 17,
   },
   emptyState: {
     backgroundColor: Colors.white,

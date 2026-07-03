@@ -20,6 +20,13 @@ export interface GameScore {
   away: number;
 }
 
+export interface CaptainSignature {
+  name: string;
+  number: string;
+  // ISO timestamp captured automatically when the signature was received.
+  signedAt: string;
+}
+
 export interface Game {
   id: string;
   homeTeam: Team;
@@ -31,6 +38,11 @@ export interface Game {
   date: string;
   time: string;
   pointNumber: number;
+  homeCaptainSignature?: CaptainSignature;
+  awayCaptainSignature?: CaptainSignature;
+  // Which team started on offense in the first point. Not derivable from the
+  // event log, so it's captured manually alongside the captain signatures.
+  attackStartTeam?: 'home' | 'away';
 }
 
 export type EventType = 'goal' | 'timeout' | 'halftime' | 'game_start' | 'game_end';

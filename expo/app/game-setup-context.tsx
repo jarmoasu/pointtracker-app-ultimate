@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { Game, GameEvent, Player, Team } from '@/types/game';
+import { CaptainSignature, Game, GameEvent, Player, Team } from '@/types/game';
 
 export type TeamSide = 'home' | 'away';
 
@@ -632,6 +632,48 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     return completedGame;
   }, [awayScore, awayTeam, homeScore, homeTeam, liveEvents, pastGameEvents, pastGames]);
 
+  const signPastGame = useCallback(
+    (gameId: string, side: TeamSide, params: { name: string; number: string }) => {
+      const name = params.name.trim();
+      const number = params.number.trim();
+      if (!name || !number) {
+        console.log('GameSetup sign past game rejected (missing name or number)', { gameId, side });
+        return null;
+      }
+
+      const signature: CaptainSignature = { name, number, signedAt: new Date().toISOString() };
+      const nextGames = pastGames.map((game) =>
+        game.id === gameId
+          ? {
+              ...game,
+              ...(side === 'home'
+                ? { homeCaptainSignature: signature }
+                : { awayCaptainSignature: signature }),
+            }
+          : game,
+      );
+
+      setPastGames(nextGames);
+      void AsyncStorage.setItem(PAST_GAMES_KEY, JSON.stringify(nextGames));
+      console.log('GameSetup sign past game', { gameId, side, signature });
+      return signature;
+    },
+    [pastGames],
+  );
+
+  const setPastGameAttackStartTeam = useCallback(
+    (gameId: string, side: TeamSide) => {
+      const nextGames = pastGames.map((game) =>
+        game.id === gameId ? { ...game, attackStartTeam: side } : game,
+      );
+
+      setPastGames(nextGames);
+      void AsyncStorage.setItem(PAST_GAMES_KEY, JSON.stringify(nextGames));
+      console.log('GameSetup set past game attack start team', { gameId, side });
+    },
+    [pastGames],
+  );
+
   const removePastGame = useCallback(
     (gameId: string) => {
       const nextGames = pastGames.filter((game) => game.id !== gameId);
@@ -699,5 +741,7 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     replaceRosterForSide,
     removePastGame,
     clearPastGames,
+    signPastGame,
+    setPastGameAttackStartTeam,
   };
 });

@@ -284,8 +284,7 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 export default function GameLogScreen() {
   const router = useRouter();
   const { liveEvents, isGameEnded, updateTimeoutEvent, removeLiveEvent } = useGameSetup();
-  const justNowEvents = liveEvents.slice(0, 2);
-  const earlierEvents = liveEvents.slice(2);
+  const chronologicalEvents = React.useMemo(() => [...liveEvents].reverse(), [liveEvents]);
   const hasEvents = liveEvents.length > 0;
 
   const handleEditGoal = React.useCallback(
@@ -360,43 +359,9 @@ export default function GameLogScreen() {
 
         {hasEvents ? (
           <>
-            <SectionDivider label="JUST NOW" />
+            <SectionDivider label="GAME LOG" />
 
-            {justNowEvents.map((event) => {
-              if (event.type === 'goal')
-                return (
-                  <GoalEventCard
-                    key={event.id}
-                    event={event}
-                    canEdit={!isGameEnded}
-                    onEdit={handleEditGoal}
-                    onDelete={handleDeleteEvent}
-                  />
-                );
-              if (event.type === 'timeout')
-                return (
-                  <TimeoutEvent
-                    key={event.id}
-                    event={event}
-                    canEdit={!isGameEnded}
-                    onEdit={handleEditTimeout}
-                    onDelete={handleDeleteEvent}
-                  />
-                );
-              if (event.type === 'halftime')
-                return (
-                  <HalftimeEvent
-                    key={event.id}
-                    event={event}
-                    canDelete={!isGameEnded}
-                    onDelete={handleDeleteEvent}
-                  />
-                );
-              if (event.type === 'game_start') return <GameStartEvent key={event.id} event={event} />;
-              return null;
-            })}
-
-            {earlierEvents.map((event) => {
+            {chronologicalEvents.map((event) => {
               if (event.type === 'goal')
                 return (
                   <GoalEventCard

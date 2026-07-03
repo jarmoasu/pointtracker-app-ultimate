@@ -21,7 +21,7 @@ const DEFAULT_TIMEOUT_CALLOUTS: CalloutSetting[] = [
   { id: createId(), seconds: 30, text: 'Timeout 30 seconds!', enabled: true },
   { id: createId(), seconds: 45, text: 'Offense 15!', enabled: true },
   { id: createId(), seconds: 60, text: 'Defense 15!', enabled: true },
-  { id: createId(), seconds: 75, text: 'Timeout over!', enabled: true },
+  { id: createId(), seconds: 75, text: 'Timeout over - play!', enabled: true },
 ];
 
 const DEFAULT_TIMEOUT_BETWEEN_POINTS_CALLOUTS: CalloutSetting[] = [
@@ -31,8 +31,8 @@ const DEFAULT_TIMEOUT_BETWEEN_POINTS_CALLOUTS: CalloutSetting[] = [
 // The highest enabled callout's `seconds` also doubles as the halftime
 // duration: once elapsed time reaches it, the halftime auto-ends.
 const DEFAULT_HALFTIME_CALLOUTS: CalloutSetting[] = [
-  { id: createId(), seconds: 45, text: 'Puoliaikaa 15 sekuntia jäljellä!', enabled: true },
-  { id: createId(), seconds: 60, text: 'Puoliaika päättynyt!', enabled: true },
+  { id: createId(), seconds: 45, text: 'Halftime xx sec/min left!', enabled: true },
+  { id: createId(), seconds: 60, text: 'Halftime ended!', enabled: true },
 ];
 
 type CalloutGroupSettings = {
