@@ -345,6 +345,56 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
     [awayScore, awayTeam, backendBaseUrl, deviceName, homeScore, homeTeam, streamId, writeToken],
   );
 
+  // Timeout/halftime signal to the backend: just "this kind of break started"
+  // or "it ended" — count-up only, no duration or which-team info, and the
+  // main game clock is never touched by this. Fire-and-forget like the goal
+  // sync above; if there's no writer session yet this silently no-ops.
+  const syncBreakToBackend = useCallback(
+    (type: 'timeout' | 'halftime', active: boolean) => {
+      const normalizedBaseUrl = (backendBaseUrl.trim() || DEFAULT_BACKEND_BASE_URL).replace(
+        /\/+$/,
+        '',
+      );
+      const token = writeToken.trim();
+      const currentStreamId = streamId.trim();
+
+      if (!token || !currentStreamId) {
+        console.log('Break sync skipped (missing write token or streamId)', { type, active });
+        return;
+      }
+
+      const trimmedDeviceName = deviceName.trim();
+
+      void (async () => {
+        try {
+          const res = await fetch(
+            `${normalizedBaseUrl}/streams/${encodeURIComponent(currentStreamId)}/break`,
+            {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+                'X-Write-Token': token,
+                ...(trimmedDeviceName ? { 'X-Device-Name': trimmedDeviceName } : {}),
+              },
+              body: JSON.stringify({ type, active }),
+            },
+          );
+
+          if (!res.ok) {
+            throw new Error(`Request failed (${res.status})`);
+          }
+
+          console.log('Break state synced', { type, active });
+        } catch (e) {
+          const message = e instanceof Error ? e.message : 'Unknown error';
+          console.log('Break sync failed', { type, active, message });
+        }
+      })();
+    },
+    [backendBaseUrl, writeToken, streamId, deviceName],
+  );
+
   const startHalftimeEvent = useCallback(
     (params: { gameTime: string; startElapsedSeconds?: number }) => {
       if (hasHalftimeEvent) {
@@ -367,10 +417,11 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       };
 
       setLiveEvents((prev) => [newEvent, ...prev]);
+      syncBreakToBackend('halftime', true);
       console.log('GameSetup start halftime event', { newEvent });
       return newEvent;
     },
-    [activeTimeoutEvent, hasHalftimeEvent],
+    [activeTimeoutEvent, hasHalftimeEvent, syncBreakToBackend],
   );
 
   const endHalftimeEvent = useCallback(
@@ -401,10 +452,13 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         }),
       );
 
+      if (updatedEvent) {
+        syncBreakToBackend('halftime', false);
+      }
       console.log('GameSetup end halftime event', { eventId, gameTime: params.gameTime });
       return updatedEvent;
     },
-    [],
+    [syncBreakToBackend],
   );
 
   const startTimeoutEvent = useCallback(
@@ -441,10 +495,11 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
       };
 
       setLiveEvents((prev) => [newEvent, ...prev]);
+      syncBreakToBackend('timeout', true);
       console.log('GameSetup start timeout event', { newEvent });
       return newEvent;
     },
-    [activeHalftimeEvent, activeTimeoutEvent, awayTeam, homeTeam],
+    [activeHalftimeEvent, activeTimeoutEvent, awayTeam, homeTeam, syncBreakToBackend],
   );
 
   const endTimeoutEvent = useCallback(
@@ -475,10 +530,13 @@ export const [GameSetupProvider, useGameSetup] = createContextHook(() => {
         }),
       );
 
+      if (updatedEvent) {
+        syncBreakToBackend('timeout', false);
+      }
       console.log('GameSetup end timeout event', { eventId, gameTime: params.gameTime });
       return updatedEvent;
     },
-    [],
+    [syncBreakToBackend],
   );
 
   const removeLiveEvent = useCallback((eventId: string) => {
