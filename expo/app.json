@@ -26,7 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.jarmoasu.upsi",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/favicon.png"
