@@ -14,6 +14,7 @@ import { Clock, Play, Coffee } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { GameEvent } from '@/types/game';
 import { useGameSetup } from '@/app/game-setup-context';
+import GameStatistics from '@/components/GameStatistics';
 
 function ScoreHeader() {
   const { homeTeam, awayTeam, homeScore, awayScore, liveEvents } = useGameSetup();
@@ -283,9 +284,11 @@ function GameStartEvent({ event }: { event: GameEvent }) {
 
 export default function GameLogScreen() {
   const router = useRouter();
-  const { liveEvents, isGameEnded, updateTimeoutEvent, removeLiveEvent } = useGameSetup();
+  const { homeTeam, awayTeam, liveEvents, isGameEnded, updateTimeoutEvent, removeLiveEvent } =
+    useGameSetup();
   const chronologicalEvents = React.useMemo(() => [...liveEvents].reverse(), [liveEvents]);
   const hasEvents = liveEvents.length > 0;
+  const [activeTab, setActiveTab] = React.useState<'stats' | 'log'>('log');
 
   const handleEditGoal = React.useCallback(
     (event: GameEvent) => {
@@ -357,7 +360,32 @@ export default function GameLogScreen() {
       >
         <ScoreHeader />
 
-        {hasEvents ? (
+        <View style={styles.logTabs}>
+          <TouchableOpacity
+            style={[styles.logTab, activeTab === 'stats' && styles.logTabActive]}
+            onPress={() => setActiveTab('stats')}
+            testID="statistics-tab"
+          >
+            <Text
+              style={[styles.logTabText, activeTab === 'stats' && styles.logTabTextActive]}
+            >
+              Statistics
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.logTab, activeTab === 'log' && styles.logTabActive]}
+            onPress={() => setActiveTab('log')}
+            testID="game-log-tab"
+          >
+            <Text style={[styles.logTabText, activeTab === 'log' && styles.logTabTextActive]}>
+              Game log
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {activeTab === 'stats' ? (
+          <GameStatistics homeTeam={homeTeam} awayTeam={awayTeam} events={liveEvents} />
+        ) : hasEvents ? (
           <>
             <SectionDivider label="GAME LOG" />
 
@@ -472,6 +500,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
     color: Colors.dark,
+  },
+  logTabs: {
+    flexDirection: 'row',
+    backgroundColor: Colors.gray200,
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 12,
+  },
+  logTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  logTabActive: {
+    backgroundColor: Colors.white,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logTabText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  logTabTextActive: {
+    color: Colors.primary,
   },
   sectionDivider: {
     flexDirection: 'row',

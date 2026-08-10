@@ -569,6 +569,7 @@ export default function GameSetupScreen() {
                 style={styles.teamInputText}
                 value={homeTeamName}
                 onChangeText={setHomeTeamName}
+                onFocus={() => setActiveRosterTab('home')}
                 testID="home-team-input"
               />
             </View>
@@ -581,6 +582,7 @@ export default function GameSetupScreen() {
                 style={styles.teamInputText}
                 value={awayTeamName}
                 onChangeText={setAwayTeamName}
+                onFocus={() => setActiveRosterTab('away')}
                 testID="away-team-input"
               />
             </View>

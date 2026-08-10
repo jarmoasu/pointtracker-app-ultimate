@@ -17,6 +17,7 @@ import { mockGameEvents } from '@/mocks/games';
 import { CaptainSignature, GameEvent } from '@/types/game';
 import { useGameSetup } from '@/app/game-setup-context';
 import { buildResultShareText } from '@/utils/resultShareText';
+import GameStatistics from '@/components/GameStatistics';
 
 function ScoreHeader({
   game,
@@ -337,6 +338,7 @@ export default function PastGameLogScreen() {
   const chronologicalLogEvents = useMemo(() => [...logEvents].reverse(), [logEvents]);
   const hasGame = Boolean(game);
   const hasEvents = logEvents.length > 0;
+  const [activeTab, setActiveTab] = useState<'stats' | 'log'>('log');
   const canShareResults = Boolean(
     game?.homeCaptainSignature && game?.awayCaptainSignature && game?.attackStartTeam,
   );
@@ -426,7 +428,32 @@ export default function PastGameLogScreen() {
               </View>
             )}
 
-            {hasEvents ? (
+            <View style={styles.logTabs}>
+              <TouchableOpacity
+                style={[styles.logTab, activeTab === 'stats' && styles.logTabActive]}
+                onPress={() => setActiveTab('stats')}
+                testID="statistics-tab"
+              >
+                <Text
+                  style={[styles.logTabText, activeTab === 'stats' && styles.logTabTextActive]}
+                >
+                  Statistics
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.logTab, activeTab === 'log' && styles.logTabActive]}
+                onPress={() => setActiveTab('log')}
+                testID="game-log-tab"
+              >
+                <Text style={[styles.logTabText, activeTab === 'log' && styles.logTabTextActive]}>
+                  Game log
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {activeTab === 'stats' && game ? (
+              <GameStatistics homeTeam={game.homeTeam} awayTeam={game.awayTeam} events={events} />
+            ) : hasEvents ? (
               <>
                 <SectionDivider label="GAME LOG" />
 
@@ -664,6 +691,36 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.5,
     marginTop: 2,
+  },
+  logTabs: {
+    flexDirection: 'row',
+    backgroundColor: Colors.gray200,
+    borderRadius: 12,
+    padding: 3,
+    marginBottom: 12,
+  },
+  logTab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  logTabActive: {
+    backgroundColor: Colors.white,
+    shadowColor: Colors.dark,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  logTabText: {
+    fontSize: 13,
+    fontWeight: '600' as const,
+    color: Colors.textSecondary,
+    letterSpacing: 0.5,
+  },
+  logTabTextActive: {
+    color: Colors.primary,
   },
   sectionDivider: {
     flexDirection: 'row',

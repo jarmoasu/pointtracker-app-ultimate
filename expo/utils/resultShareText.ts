@@ -108,12 +108,14 @@ export function buildResultShareText(game: Game, events: GameEvent[]): string {
   const goals = chronoEvents.filter((e) => e.type === 'goal');
   if (goals.length) {
     goals.forEach((g, index) => {
-      const assist = g.assistName ? `${g.assistName} #${g.assistNumber}` : 'CALLAHAN';
+      const assist = g.assistNumber
+        ? `${g.assistName || 'Nimetön'} #${g.assistNumber}`
+        : 'CALLAHAN';
       const situation = g.scoreAtEvent ? `${g.scoreAtEvent.home}-${g.scoreAtEvent.away}` : '-';
       lines.push('');
       lines.push(`${index + 1}. ${g.teamName ?? 'Joukkue'}`);
       lines.push(`Syöttö: ${assist}`);
-      lines.push(`Maali: ${g.scorerName} #${g.scorerNumber}`);
+      lines.push(`Maali: ${g.scorerName || 'Nimetön'} #${g.scorerNumber}`);
       lines.push(`Aika: ${g.gameTime}`);
       lines.push(`Tilanne: ${situation}`);
     });
