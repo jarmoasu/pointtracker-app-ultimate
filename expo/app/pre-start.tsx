@@ -8,7 +8,7 @@ import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
 import SettingsButton from '@/components/SettingsButton';
 
-const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+const DEFAULT_BACKEND_BASE_URL = 'https://upsi-backend.vinterim.fi';
 
 export default function PreStartScreen() {
   const router = useRouter();

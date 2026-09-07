@@ -21,7 +21,7 @@ import { Wifi, KeyRound, Copy, Check, Share2 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGameSetup } from '@/app/game-setup-context';
 
-const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+const DEFAULT_BACKEND_BASE_URL = 'https://upsi-backend.vinterim.fi';
 
 type StreamLiveState = {
   homeTeamName?: string;

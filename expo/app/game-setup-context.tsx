@@ -14,7 +14,7 @@ const STREAM_ID_KEY = 'pointtracker.streamId.v1';
 const DEVICE_NAME_KEY = 'pointtracker.deviceName.v1';
 const PAST_GAMES_KEY = 'pointtracker.pastGames.v1';
 const PAST_GAME_EVENTS_KEY = 'pointtracker.pastGameEvents.v1';
-const DEFAULT_BACKEND_BASE_URL = 'https://pointtracker-service-ultimate.onrender.com';
+const DEFAULT_BACKEND_BASE_URL = 'https://upsi-backend.vinterim.fi';
 
 function parseClockToSeconds(clock: string): number | null {
   const trimmed = clock.trim();
