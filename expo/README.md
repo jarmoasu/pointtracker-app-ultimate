@@ -97,6 +97,12 @@ context/               # React context (game setup state)
 
 ## Building for distribution
 
+**Before building a new release, bump the version in `app.json`:**
+
+- `expo.version` — the marketing version (e.g. `1.4.0` → `1.4.1`). Apple rejects a new iOS build if `CFBundleShortVersionString` matches a version that was already approved on the App Store, even with a higher build number (`ITMS-90186` / `ITMS-90062`), so this must go up for every App Store submission.
+- `expo.ios.buildNumber` — must be unique within a version "train"; reset it to `"1"` when `version` changes, otherwise increment it.
+- `expo.android.versionCode` — must increase on every Play Store build (no train restriction, but it can never be reused or lowered).
+
 Builds are handled by [EAS](https://expo.dev/eas):
 
 ```bash
