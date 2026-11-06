@@ -5,3 +5,9 @@ node_modules
 expo-env.d.ts
 assets/.DS_Store
 .DS_Store
+
+# Use npm only (EAS Build picks the package manager from the lockfile)
+bun.lock
+bun.lockb
+yarn.lock
+pnpm-lock.yaml

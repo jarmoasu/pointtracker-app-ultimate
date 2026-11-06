@@ -33,15 +33,13 @@ Cross-platform iOS/Android/Web app for setting up a match, tracking points live,
 ### Prerequisites
 
 - **Node.js** ≥ 20
-- **npm** or **bun**
+- **npm** (the repo uses `package-lock.json`; don't commit other lockfiles, EAS Build picks the package manager from the lockfile)
 - **Expo Go** app on your device (for quick testing), or a simulator/emulator
 
 ### Install
 
 ```bash
 npm install
-# or
-bun install
 ```
 
 ### Run
